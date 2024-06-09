@@ -33,19 +33,11 @@ export class Stage {
   }
 
   addBox(x, y, z, width, height, depth, rotation = 0, stackable = false) {
+    console.log('Adding box!!', { x, y, z, width, height, depth, rotation, stackable });
     const box = new Box(x, y, z, width, height, depth, rotation, stackable);
-    const geometry = new THREE.BoxGeometry(box.width, box.height, box.depth);
-    const material = new THREE.MeshBasicMaterial({ color: stackable ? 0x0000ff : 0x00ff00, wireframe: true });
-    const cube = new THREE.Mesh(geometry, material);
-
-    cube.position.set(box.x, box.height / 2, box.z); // Ensure the box stays on the ground
-    cube.rotation.y = THREE.MathUtils.degToRad(box.rotation);
-    cube.box = box;
-    box.cube = cube;
-
-    this.children.push(cube);
+    this.scene.add(box);
+    this.children.push(box);
     this.boxes.push(box);
-    this.scene.add(cube);
   }
 
   removeBox(box) {
@@ -85,7 +77,6 @@ export class Stage {
     const ground = this.scene.getObjectByName('ground');
     const intersects = this.raycaster.intersectObject(ground);
     if (intersects.length > 0) {
-      console.log(`Intersect point: ${intersects[0].point.x}, ${intersects[0].point.y}, ${intersects[0].point.z}`);
       return intersects[0].point;
     }
     return null;

@@ -1,139 +1,101 @@
 import * as THREE from 'three';
-import { OBB } from './OBB.js';
+import { Box } from './Box.js';
+import { createOBB, adjustPosition } from './OBBUtils.js';
 
 export class CollisionHandler {
   constructor(stage) {
     this.stage = stage;
+    this.originalPositions = new Map();
+  }
+
+  addBox(x, y, z, width, height, depth, rotation, stackable = false) {
+    const box = new Box(x, y, z, width, height, depth, rotation, stackable);
+    this.stage.add(box);
   }
 
   handleCollisions(draggedObject) {
-    const draggedOBB = new OBB(
-      draggedObject.position.clone(),
-      new THREE.Vector3(
-        draggedObject.geometry.parameters.width / 2,
-        draggedObject.geometry.parameters.height / 2,
-        draggedObject.geometry.parameters.depth / 2
-      ),
-      new THREE.Matrix3().setFromMatrix4(draggedObject.matrixWorld)
-    );
+    const draggedOBB = createOBB(draggedObject);
     let hasCollision = false;
+    let isStacking = false;
 
     const maxIterations = 100; // Maximum number of iterations to prevent infinite loops
     const step = 0.1; // Define a small step to incrementally adjust the position
     let iteration = 0;
 
     const collidingObjects = new Set();
+    const stackableObjects = new Set();
 
-    // Function to check and handle intersections
-    const checkIntersection = (selectedOBB, stage) => {
-      let doesIntersect = false;
-      let intersectingObject = null;
-
-      for (let otherObject of stage.children) {
-        if (otherObject !== draggedObject && otherObject.isMesh) {
-          const otherOBB = new OBB(
-            otherObject.position.clone(),
-            new THREE.Vector3(
-              otherObject.geometry.parameters.width / 2,
-              otherObject.geometry.parameters.height / 2,
-              otherObject.geometry.parameters.depth / 2
-            ),
-            new THREE.Matrix3().setFromMatrix4(otherObject.matrixWorld)
-          );
-
-          if (selectedOBB.intersectsOBB(otherOBB)) {
-            doesIntersect = true;
-            intersectingObject = otherObject;
-            break;
-          }
-        }
-      }
-
-      return { doesIntersect, intersectingObject };
-    };
-
-    // Function to adjust position with minimal movement
-    const adjustPosition = (object, otherOBB) => {
-      const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
-      const draggedOBBMax = draggedOBB.center.clone().add(draggedOBB.halfSize);
-      const otherOBBMin = otherOBB.center.clone().sub(otherOBB.halfSize);
-      const otherOBBMax = otherOBB.center.clone().add(otherOBB.halfSize);
-
-      const intersectionDepthX = Math.min(
-        Math.abs(draggedOBBMax.x - otherOBBMin.x),
-        Math.abs(otherOBBMax.x - draggedOBBMin.x)
-      );
-
-      const intersectionDepthZ = Math.min(
-        Math.abs(draggedOBBMax.z - otherOBBMin.z),
-        Math.abs(otherOBBMax.z - draggedOBBMin.z)
-      );
-
-      if (intersectionDepthX < intersectionDepthZ) {
-        if (draggedOBBMin.x < otherOBBMin.x) {
-          object.position.x -= intersectionDepthX + step;
-        } else {
-          object.position.x += intersectionDepthX + step;
-        }
-      } else {
-        if (draggedOBBMin.z < otherOBBMin.z) {
-          object.position.z -= intersectionDepthZ + step;
-        } else {
-          object.position.z += intersectionDepthZ + step;
-        }
-      }
-      draggedOBB.set(object.position.clone(), draggedOBB.halfSize, new THREE.Matrix3().setFromMatrix4(object.matrixWorld));
-    };
-
+    // Function to handle stacking
     const handleStacking = (object, stackableObject) => {
-      const stackableOBB = new OBB(
-        stackableObject.position.clone(),
-        new THREE.Vector3(
-          stackableObject.geometry.parameters.width / 2,
-          stackableObject.geometry.parameters.height / 2,
-          stackableObject.geometry.parameters.depth / 2
-        ),
-        new THREE.Matrix3().setFromMatrix4(stackableObject.matrixWorld)
-      );
+      const stackableOBB = createOBB(stackableObject);
 
       const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
-      const draggedOBBMax = draggedOBB.center.clone().add(draggedOBB.halfSize);
-
       const stackableOBBMax = stackableOBB.center.clone().add(stackableOBB.halfSize);
 
       // Ensure the object is placed directly on top of the stackable box
       if (draggedOBBMin.y < stackableOBBMax.y) {
         object.position.y = stackableOBBMax.y + draggedOBB.halfSize.y;
+        isStacking = true;
+
+        // Track stacked items and their relative positions
+        stackableObject.stackedItems.add(object);
+        if (!this.originalPositions.has(object)) {
+          this.originalPositions.set(object, {
+            x: object.position.x - stackableObject.position.x,
+            y: object.position.y - stackableObject.position.y,
+            z: object.position.z - stackableObject.position.z
+          });
+        }
       }
+    };
+
+    // Function to detach items that are no longer on top of a stackable box
+    const detachItems = (object) => {
+      this.stage.children.forEach(stackableBox => {
+        if (stackableBox.stackable && stackableBox.stackedItems.has(object)) {
+          const originalPosition = this.originalPositions.get(object);
+          const objectPositionRelativeToStackable = new THREE.Vector3(
+            object.position.x - stackableBox.position.x,
+            object.position.y - stackableBox.position.y,
+            object.position.z - stackableBox.position.z
+          );
+
+          // If the object has moved significantly from its original relative position, detach it
+          if (objectPositionRelativeToStackable.distanceTo(originalPosition) > 0.1) {
+            stackableBox.stackedItems.delete(object);
+            this.originalPositions.delete(object);
+            object.material.color.set(0x00ff00); // Change color to green when detached
+          }
+        }
+      });
     };
 
     // Iterate to adjust position until no collision is found or max iterations reached
     while (iteration < maxIterations) {
       hasCollision = false;
+      isStacking = false;
       collidingObjects.clear();
+      stackableObjects.clear();
 
-      this.stage.children.forEach(cube => {
-        if (cube === draggedObject || !cube.isMesh) return;
+      this.stage.children.forEach(box => {
+        if (box === draggedObject || !box.isMesh) return;
 
-        const otherOBB = new OBB(
-          cube.position.clone(),
-          new THREE.Vector3(
-            cube.geometry.parameters.width / 2,
-            cube.geometry.parameters.height / 2,
-            cube.geometry.parameters.depth / 2
-          ),
-          new THREE.Matrix3().setFromMatrix4(cube.matrixWorld)
-        );
+        const otherOBB = createOBB(box);
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
-          if (cube.box.stackable && !cube.material.color.equals(new THREE.Color(0xff0000))) {
-            handleStacking(draggedObject, cube);
+          if (box.stackable) {
+            stackableObjects.add(box);
           } else {
+            collidingObjects.add(box);
             hasCollision = true;
-            collidingObjects.add(cube);
-            adjustPosition(draggedObject, otherOBB);
+            adjustPosition(draggedObject, draggedOBB, otherOBB, step);
           }
         }
+      });
+
+      // Handle stacking after adjusting position
+      stackableObjects.forEach(stackableObject => {
+        handleStacking(draggedObject, stackableObject);
       });
 
       if (!hasCollision) break;
@@ -141,32 +103,26 @@ export class CollisionHandler {
       iteration++;
     }
 
-    // Set colors based on collision state
-    this.stage.children.forEach(cube => {
-      if (collidingObjects.has(cube)) {
-        cube.material.color.set(0xff0000); // Set colliding object color to red
-      } else {
-        if (cube.box.stackable) {
-          cube.material.color.set(0x0000ff); // Keep stackable boxes blue
-        } else {
-          cube.material.color.set(0x00ff00); // Set non-colliding non-stackable object color to green
+    // Move stacked items together with their parent stackable box
+    if (draggedObject.stackable) {
+      draggedObject.stackedItems.forEach(stackedItem => {
+        const originalPosition = this.originalPositions.get(stackedItem);
+        if (originalPosition) {
+          stackedItem.position.set(
+            draggedObject.position.x + originalPosition.x,
+            draggedObject.position.y + originalPosition.y,
+            draggedObject.position.z + originalPosition.z
+          );
         }
-      }
-    });
-
-    // Handle dragged object color separately
-    if (hasCollision) {
-      if (draggedObject.material && draggedObject.material.color) {
-        draggedObject.material.color.set(0xff0000); // Set dragged object color to red
-      }
-    } else {
-      if (draggedObject.material && draggedObject.material.color) {
-        if (draggedObject.box.stackable) {
-          draggedObject.material.color.set(0x0000ff); // Keep stackable dragged object blue
-        } else {
-          draggedObject.material.color.set(0x00ff00); // Set non-colliding dragged object color to green
-        }
-      }
+      });
     }
+
+    // Detach items that are no longer on top of a stackable box
+    detachItems(draggedObject);
+
+    // Set colors based on collision state
+    this.stage.children.forEach(box => {
+      if (box instanceof Box) box.setColorBasedOnCollision(collidingObjects, hasCollision && box === draggedObject);
+    });
   }
 }
