@@ -19,8 +19,9 @@ export class GUIManager {
         height: 10,
         depth: 10,
         rotation: 0,
+        stackable: false,
         addBox: () => {
-          this.stage.addBox(params.x, params.y, params.z, params.width, params.height, params.depth, params.rotation);
+          this.stage.addBox(params.x, params.y, params.z, params.width, params.height, params.depth, params.rotation, params.stackable);
         }
       };
 
@@ -31,6 +32,7 @@ export class GUIManager {
       this.gui.add(params, 'height').name('Height').step(1);
       this.gui.add(params, 'depth').name('Depth').step(1);
       this.gui.add(params, 'rotation').name('Rotation').step(1);
+      this.gui.add(params, 'stackable').name('Stackable');
       this.gui.add(params, 'addBox').name('Add Box');
     } else {
       this.gui = window.gui;

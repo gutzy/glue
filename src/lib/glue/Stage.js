@@ -32,10 +32,10 @@ export class Stage {
     window.addEventListener('resize', () => this.onWindowResize(), false);
   }
 
-  addBox(x, y, z, width, height, depth, rotation = 0) {
-    const box = new Box(x, y, z, width, height, depth, rotation);
+  addBox(x, y, z, width, height, depth, rotation = 0, stackable = false) {
+    const box = new Box(x, y, z, width, height, depth, rotation, stackable);
     const geometry = new THREE.BoxGeometry(box.width, box.height, box.depth);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    const material = new THREE.MeshBasicMaterial({ color: stackable ? 0x0000ff : 0x00ff00, wireframe: true });
     const cube = new THREE.Mesh(geometry, material);
 
     cube.position.set(box.x, box.height / 2, box.z); // Ensure the box stays on the ground

@@ -1,5 +1,5 @@
 export class Box {
-  constructor(x, y, z, width, height, depth, rotation = 0) {
+  constructor(x, y, z, width, height, depth, rotation = 0, stackable = false) {
     this.x = x;
     this.y = y;
     this.z = z;
@@ -7,7 +7,7 @@ export class Box {
     this.height = height;
     this.depth = depth;
     this.rotation = rotation;
+    this.stackable = stackable;
     this.cube = null;
-    this.stackable = false; // Placeholder for future stacking feature
   }
 }

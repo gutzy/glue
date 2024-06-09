@@ -42,9 +42,6 @@ export class CollisionHandler {
           );
 
           if (selectedOBB.intersectsOBB(otherOBB)) {
-            console.log(`Intersection detected between:`);
-            console.log(`Dragged OBB - Center: ${selectedOBB.center.toArray()}, Half Size: ${selectedOBB.halfSize.toArray()}, Rotation: ${selectedOBB.rotation.elements}`);
-            console.log(`Other OBB - Center: ${otherOBB.center.toArray()}, Half Size: ${otherOBB.halfSize.toArray()}, Rotation: ${otherOBB.rotation.elements}`);
             doesIntersect = true;
             intersectingObject = otherObject;
             break;
@@ -72,11 +69,6 @@ export class CollisionHandler {
         Math.abs(otherOBBMax.z - draggedOBBMin.z)
       );
 
-      console.log(`Adjusting position:`);
-      console.log(`Dragged OBB Min: ${draggedOBBMin.toArray()}, Max: ${draggedOBBMax.toArray()}`);
-      console.log(`Other OBB Min: ${otherOBBMin.toArray()}, Max: ${otherOBBMax.toArray()}`);
-      console.log(`Intersection Depth X: ${intersectionDepthX}, Z: ${intersectionDepthZ}`);
-
       if (intersectionDepthX < intersectionDepthZ) {
         if (draggedOBBMin.x < otherOBBMin.x) {
           object.position.x -= intersectionDepthX + step;
@@ -91,6 +83,28 @@ export class CollisionHandler {
         }
       }
       draggedOBB.set(object.position.clone(), draggedOBB.halfSize, new THREE.Matrix3().setFromMatrix4(object.matrixWorld));
+    };
+
+    const handleStacking = (object, stackableObject) => {
+      const stackableOBB = new OBB(
+        stackableObject.position.clone(),
+        new THREE.Vector3(
+          stackableObject.geometry.parameters.width / 2,
+          stackableObject.geometry.parameters.height / 2,
+          stackableObject.geometry.parameters.depth / 2
+        ),
+        new THREE.Matrix3().setFromMatrix4(stackableObject.matrixWorld)
+      );
+
+      const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
+      const draggedOBBMax = draggedOBB.center.clone().add(draggedOBB.halfSize);
+
+      const stackableOBBMax = stackableOBB.center.clone().add(stackableOBB.halfSize);
+
+      // Ensure the object is placed directly on top of the stackable box
+      if (draggedOBBMin.y < stackableOBBMax.y) {
+        object.position.y = stackableOBBMax.y + draggedOBB.halfSize.y;
+      }
     };
 
     // Iterate to adjust position until no collision is found or max iterations reached
@@ -112,11 +126,13 @@ export class CollisionHandler {
         );
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
-          hasCollision = true;
-          collidingObjects.add(cube);
-
-          // Adjust position with minimal movement
-          adjustPosition(draggedObject, otherOBB);
+          if (cube.box.stackable && !cube.material.color.equals(new THREE.Color(0xff0000))) {
+            handleStacking(draggedObject, cube);
+          } else {
+            hasCollision = true;
+            collidingObjects.add(cube);
+            adjustPosition(draggedObject, otherOBB);
+          }
         }
       });
 
@@ -130,20 +146,27 @@ export class CollisionHandler {
       if (collidingObjects.has(cube)) {
         cube.material.color.set(0xff0000); // Set colliding object color to red
       } else {
-        cube.material.color.set(0x00ff00); // Set non-colliding object color to green
+        if (cube.box.stackable) {
+          cube.material.color.set(0x0000ff); // Keep stackable boxes blue
+        } else {
+          cube.material.color.set(0x00ff00); // Set non-colliding non-stackable object color to green
+        }
       }
     });
 
+    // Handle dragged object color separately
     if (hasCollision) {
       if (draggedObject.material && draggedObject.material.color) {
         draggedObject.material.color.set(0xff0000); // Set dragged object color to red
       }
     } else {
       if (draggedObject.material && draggedObject.material.color) {
-        draggedObject.material.color.set(0x00ff00); // Set dragged object color to green if no collision
+        if (draggedObject.box.stackable) {
+          draggedObject.material.color.set(0x0000ff); // Keep stackable dragged object blue
+        } else {
+          draggedObject.material.color.set(0x00ff00); // Set non-colliding dragged object color to green
+        }
       }
     }
-
-    console.log(`Collision resolution completed. Final position: ${draggedObject.position.toArray()}`);
   }
 }
