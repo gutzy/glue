@@ -8,11 +8,6 @@ export class CollisionHandler {
     this.originalPositions = new Map();
   }
 
-  addBox(x, y, z, width, height, depth, rotation, stackable = false) {
-    const box = new Box(x, y, z, width, height, depth, rotation, stackable);
-    this.stage.add(box);
-  }
-
   handleCollisions(draggedObject) {
     const draggedOBB = createOBB(draggedObject);
     let hasCollision = false;
@@ -24,6 +19,11 @@ export class CollisionHandler {
 
     const collidingObjects = new Set();
     const stackableObjects = new Set();
+
+    // Lock stacked items if the dragged object is stackable
+    if (draggedObject.stackable) {
+      draggedObject.lockStackedItems();
+    }
 
     // Function to handle stacking
     const handleStacking = (object, stackableObject) => {
@@ -38,7 +38,6 @@ export class CollisionHandler {
         isStacking = true;
 
         // Track stacked items and their relative positions
-        stackableObject.stackedItems.add(object);
         if (!this.originalPositions.has(object)) {
           this.originalPositions.set(object, {
             x: object.position.x - stackableObject.position.x,
@@ -46,6 +45,7 @@ export class CollisionHandler {
             z: object.position.z - stackableObject.position.z
           });
         }
+        stackableObject.stack(object);
       }
     };
 
@@ -53,18 +53,10 @@ export class CollisionHandler {
     const detachItems = (object) => {
       this.stage.children.forEach(stackableBox => {
         if (stackableBox.stackable && stackableBox.stackedItems.has(object)) {
-          const originalPosition = this.originalPositions.get(object);
-          const objectPositionRelativeToStackable = new THREE.Vector3(
-            object.position.x - stackableBox.position.x,
-            object.position.y - stackableBox.position.y,
-            object.position.z - stackableBox.position.z
-          );
-
-          // If the object has moved significantly from its original relative position, detach it
-          if (objectPositionRelativeToStackable.distanceTo(originalPosition) > 0.1) {
-            stackableBox.stackedItems.delete(object);
+          if (!stackableBox.isItemStillStacked(object)) {
+            console.log("Detaching object:", object);
+            stackableBox.unstack(object);
             this.originalPositions.delete(object);
-            object.material.color.set(0x00ff00); // Change color to green when detached
           }
         }
       });
@@ -78,7 +70,7 @@ export class CollisionHandler {
       stackableObjects.clear();
 
       this.stage.children.forEach(box => {
-        if (box === draggedObject || !box.isMesh) return;
+        if (box === draggedObject || box.locked || !box.isMesh) return;
 
         const otherOBB = createOBB(box);
 
@@ -105,16 +97,8 @@ export class CollisionHandler {
 
     // Move stacked items together with their parent stackable box
     if (draggedObject.stackable) {
-      draggedObject.stackedItems.forEach(stackedItem => {
-        const originalPosition = this.originalPositions.get(stackedItem);
-        if (originalPosition) {
-          stackedItem.position.set(
-            draggedObject.position.x + originalPosition.x,
-            draggedObject.position.y + originalPosition.y,
-            draggedObject.position.z + originalPosition.z
-          );
-        }
-      });
+      draggedObject.moveStackedItems();
+      draggedObject.unlockStackedItems();
     }
 
     // Detach items that are no longer on top of a stackable box

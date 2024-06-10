@@ -41,9 +41,9 @@ export class Stage {
   }
 
   removeBox(box) {
-    const index = this.children.indexOf(box.cube);
+    const index = this.children.indexOf(box);
     if (index > -1) {
-      this.scene.remove(box.cube);
+      this.scene.remove(box);
       this.children.splice(index, 1);
     }
     const boxIndex = this.boxes.indexOf(box);
@@ -93,3 +93,4 @@ export class Stage {
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
   }
 }
+
