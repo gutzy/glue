@@ -18,15 +18,15 @@ export class CollisionHandler {
     let iteration = 0;
 
     const collidingObjects = new Set();
-    const stackableObjects = new Set();
+    const stackableObjects = [];
 
     // Lock stacked items if the dragged object is stackable
     if (draggedObject.stackable) {
       draggedObject.lockStackedItems();
     }
 
-    // Function to handle stacking
-    const handleStacking = (object, stackableObject) => {
+    // Function to handle stacking recursively
+    const handleStacking = (object, stackableObject, isStacked = false) => {
       const stackableOBB = createOBB(stackableObject);
 
       const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
@@ -45,7 +45,24 @@ export class CollisionHandler {
             z: object.position.z - stackableObject.position.z
           });
         }
-        stackableObject.stack(object);
+        if (object.stackedTo !== stackableObject) {
+          if (object.stackedTo) {
+            if (!isStacked) object.stackedTo.unstack(object);
+          }
+          if (!isStacked) stackableObject.stack(object);
+        }
+        else {
+          // Update the relative position if the object is already stacked
+            object.relativePosition = {
+                x: object.position.x - stackableObject.position.x,
+                y: object.position.y - stackableObject.position.y,
+                z: object.position.z - stackableObject.position.z
+            };
+        }
+        // Recursively stack items on top of the dragged object
+        object.stackedItems.forEach(item => {
+          handleStacking(item, stackableObject, true);
+        });
       }
     };
 
@@ -54,7 +71,6 @@ export class CollisionHandler {
       this.stage.children.forEach(stackableBox => {
         if (stackableBox.stackable && stackableBox.stackedItems.has(object)) {
           if (!stackableBox.isItemStillStacked(object)) {
-            console.log("Detaching object:", object);
             stackableBox.unstack(object);
             this.originalPositions.delete(object);
           }
@@ -67,7 +83,7 @@ export class CollisionHandler {
       hasCollision = false;
       isStacking = false;
       collidingObjects.clear();
-      stackableObjects.clear();
+      stackableObjects.length = 0;
 
       this.stage.children.forEach(box => {
         if (box === draggedObject || box.locked || !box.isMesh) return;
@@ -76,14 +92,20 @@ export class CollisionHandler {
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
           if (box.stackable) {
-            stackableObjects.add(box);
+            stackableObjects.push(box);
           } else {
             collidingObjects.add(box);
             hasCollision = true;
-            adjustPosition(draggedObject, draggedOBB, otherOBB, step);
+            // Prevent adjusting position if collision is with the stackedTo counterpart
+            if (draggedObject.stackedTo !== box) {
+              adjustPosition(draggedObject, draggedOBB, otherOBB, step);
+            }
           }
         }
       });
+
+      // Sort stackable objects by height to prioritize stacking on the highest box
+      stackableObjects.sort((a, b) => a.position.y - b.position.y);
 
       // Handle stacking after adjusting position
       stackableObjects.forEach(stackableObject => {

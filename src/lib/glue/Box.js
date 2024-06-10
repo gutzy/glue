@@ -7,8 +7,7 @@ export class Box extends THREE.Mesh {
     super(geometry, material);
 
     this.position.set(x, y, z);
-    // put on floor
-    this.position.y += height / 2;
+    this.position.y += height / 2;  // Ensure it is on the floor
     this.rotation.y = THREE.MathUtils.degToRad(rotation);
     this.stackable = stackable;
     this.stackedTo = null;
@@ -24,13 +23,14 @@ export class Box extends THREE.Mesh {
       z: object.position.z - this.position.z
     };
     object.stackedTo = this;
-    console.log(`Stacked ${object.uuid} on ${this.uuid}`);
+
+    // handle stacking recursively for all objects stacked on top of this object
+    object.moveStackedItems();
   }
 
   unstack(object) {
     this.stackedItems.delete(object);
     object.stackedTo = null;
-    console.log('Unstacked object:', object);
     object.updateColor(); // Update color of the unstacked object
     delete object.relativePosition;
   }
@@ -76,7 +76,8 @@ export class Box extends THREE.Mesh {
         this.position.y + item.relativePosition.y,
         this.position.z + item.relativePosition.z
       );
-      console.log(`Moved stacked item ${item.uuid} to (${item.position.x}, ${item.position.y}, ${item.position.z})`);
+      // Recursively move items stacked on top of this item
+      item.moveStackedItems();
     });
   }
 
