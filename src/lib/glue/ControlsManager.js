@@ -3,10 +3,11 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
 
 export class ControlsManager {
-  constructor(camera, domElement, stage) {
+  constructor(camera, domElement, stage, config = {}) {
     this.camera = camera;
     this.domElement = domElement;
     this.stage = stage;
+    this.config = config;
 
     this.orbitControls = new OrbitControls(this.camera, this.domElement);
     this.transformControls = new TransformControls(this.camera, this.domElement);
@@ -27,5 +28,29 @@ export class ControlsManager {
     });
 
     this.domElement.addEventListener('mousemove', this.stage.onMouseMove.bind(this.stage), false);
+
+    this.setControls();
+  }
+
+  setControls() {
+    this.orbitControls.enabled = this.config.enableControls || false;
+    this.orbitControls.enablePan = this.config.enablePan || false;
+    this.orbitControls.enableZoom = this.config.enableZoom || false;
+    this.orbitControls.enableRotate = this.config.enableRotate || false;
+    this.orbitControls.update();
+
+    this.dragControls.enabled = this.config.enableDrag || false;
+  }
+
+  setCamera(camera) {
+    this.camera = camera;
+    this.orbitControls.object = camera;
+    this.orbitControls.update();
+    this.transformControls.camera = camera;
+  }
+
+  updateConfig(config) {
+    this.config = { ...this.config, ...config };
+    this.setControls();
   }
 }
