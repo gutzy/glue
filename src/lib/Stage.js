@@ -99,6 +99,7 @@ export class Stage {
             }
         });
       this.scene.add(gltf.scene);
+      console.log('Loaded model:', gltf.scene);
     });
   }
 
@@ -108,6 +109,16 @@ export class Stage {
     this.mountingPoints.push(mountingPoint);
     this.scene.add(mountingPoint);
     this.transformControls.attach(mountingPoint);
+  }
+
+  removeMountingPoint(index) {
+    const mountingPoint = this.mountingPoints[index];
+    console.log('Removing mounting point:', mountingPoint)
+    if (mountingPoint && this.transformControls.object) {
+      this.transformControls.detach();
+      this.scene.remove(mountingPoint);
+      this.mountingPoints.splice(index, 1);
+    }
   }
 
   onMouseDown(event) {
