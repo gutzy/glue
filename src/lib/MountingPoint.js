@@ -69,6 +69,8 @@ export class MountingPoint extends THREE.Object3D {
     const material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
 
     const pyramid = new THREE.Mesh(geometry, material);
+    // set type attribute, for collision detection
+    pyramid.type = 'mountingPoint';
     this.add(pyramid);
 
     stage.scene.add(this);

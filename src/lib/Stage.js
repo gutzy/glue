@@ -92,6 +92,12 @@ export class Stage {
   loadModel(contents) {
     this.loader.parse(contents, '', (gltf) => {
       gltf.scene.scale.set(this.config.modelScale || 1, this.config.modelScale || 1, this.config.modelScale || 1);
+      // set type attribute, for collision detection
+        gltf.scene.traverse((child) => {
+            if (child.isMesh) {
+            child.type = 'model';
+            }
+        });
       this.scene.add(gltf.scene);
     });
   }
@@ -104,14 +110,43 @@ export class Stage {
     this.transformControls.attach(mountingPoint);
   }
 
-  onMouseClick(event) {
+  onMouseDown(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-    if (intersects.length > 0) {
-      this.selectedObject = intersects[0];
-      console.log('Selected object:', this.selectedObject);
+    for (let i = 0; i < intersects.length; i++) {
+      console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
+      if (intersects[i].object.type === 'model') {
+        this.selectedObject = intersects[i];
+        console.log('Selected object:', this.selectedObject.object.type, this.selectedObject.object.name);
+        break;
+      }
+      if (intersects[i].object.type === 'mountingPoint') {
+        console.log('Selected mounting point:', intersects[i].object.name);
+        // if transforms are already attached to this object, toggle their mode from translate to rotate
+        if (this.transformControls.object === intersects[i].object) {
+          this.transformControls.setMode(this.transformControls.mode === 'translate' ? 'rotate' : 'translate');
+        }
+
+        // should show the transform controls
+        this.transformControls.attach(intersects[i].object);
+        break;
+      }
+      if (intersects[i].object.type === 'Line') {
+        console.log('Selected transform controls plane:', intersects[i].object.name);
+        // should hide the transform controls
+        // this.transformControls.detach();
+        break;
+      }
+
+      if (intersects[i].object.name === 'ground') {
+        this.selectedObject = null;
+        console.log('Selected floor:');
+        // should hide the transform controls
+        this.transformControls.detach();
+        break;
+      }
     }
   }
 
@@ -141,7 +176,7 @@ export class Stage {
       this.orbitControls.enabled = !event.value;
     });
 
-    this.renderer.domElement.addEventListener('click', this.onMouseClick.bind(this), false);
+    this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
   }
 
   onMouseMove(event) {

@@ -40,6 +40,10 @@ export class ControlsManager {
     this.setControls();
   }
 
+  setTransformMode(mode) {
+    this.transformControls.setMode(mode);
+  }
+
   setControls() {
     this.orbitControls.enabled = this.config.enableControls || false;
     this.orbitControls.enablePan = this.config.enablePan || false;
