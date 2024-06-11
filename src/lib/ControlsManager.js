@@ -15,6 +15,7 @@ export class ControlsManager {
 
     this.dragControls = new DragControls(this.stage.children, this.camera, this.domElement);
     this.dragControls.addEventListener('dragstart', event => {
+      console.log('Drag Start');
       this.orbitControls.enabled = false;
       this.stage.calculateDragOffset(event.object, event);
     });
@@ -24,7 +25,14 @@ export class ControlsManager {
       this.stage.collisionHandler.handleCollisions(event.object);
     });
     this.dragControls.addEventListener('dragend', () => {
+      console.log('Drag End');
       this.orbitControls.enabled = true;
+    });
+
+    // Updated event listener for TransformControls
+    this.transformControls.addEventListener('dragging-changed', (event) => {
+      console.log('Dragging changed:', event.value, this.orbitControls.enabled);
+      this.orbitControls.enabled = !event.value;
     });
 
     this.domElement.addEventListener('mousemove', this.stage.onMouseMove.bind(this.stage), false);

@@ -39,7 +39,8 @@ export class GUIManager {
 
       // Panel for configuration settings
       const configParams = {
-        cameraType: 'perspective',
+        cameraType: this.stage.config.cameraType || 'perspective',
+        modelScale: this.stage.config.modelScale || 1,
         enablePan: this.stage.config.enablePan || false,
         enableZoom: this.stage.config.enableZoom || false,
         enableRotate: this.stage.config.enableRotate || false,
@@ -47,6 +48,7 @@ export class GUIManager {
         updateConfig: () => {
           this.stage.updateConfig({
             cameraType: configParams.cameraType,
+            modelScale: configParams.modelScale,
             enablePan: configParams.enablePan,
             enableZoom: configParams.enableZoom,
             enableRotate: configParams.enableRotate,
@@ -57,6 +59,7 @@ export class GUIManager {
 
       const configFolder = this.gui.addFolder('Configuration Settings');
       configFolder.add(configParams, 'cameraType', ['perspective', 'orthographic']).name('Camera Type').onChange(configParams.updateConfig);
+      configFolder.add(configParams, 'modelScale', 0.1, 100).name('Model Scale').onChange(configParams.updateConfig);
       configFolder.add(configParams, 'enablePan').name('Enable Pan').onChange(configParams.updateConfig);
       configFolder.add(configParams, 'enableZoom').name('Enable Zoom').onChange(configParams.updateConfig);
       configFolder.add(configParams, 'enableRotate').name('Enable Rotate').onChange(configParams.updateConfig);

@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { Box } from './Box.js';
 import { createOBB, adjustPosition } from './OBBUtils.js';
 
