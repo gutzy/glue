@@ -9,9 +9,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import {EventDispatcher} from "three";
 
-export class Stage {
+export class Stage extends EventDispatcher {
   constructor(container, config = {}) {
+    super();
     this.container = container;
     this.config = config;
     this.scene = new THREE.Scene();
@@ -127,29 +129,33 @@ export class Stage {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
     for (let i = 0; i < intersects.length; i++) {
-      console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
+      // console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
       if (intersects[i].object.type === 'model') {
         this.selectedObject = intersects[i];
         console.log('Selected object:', this.selectedObject.object.type, this.selectedObject.object.name);
         break;
       }
+
       if (intersects[i].object.type === 'mountingPoint') {
-        console.log('Selected mounting point:', intersects[i].object.name);
         // if transforms are already attached to this object, toggle their mode from translate to rotate
-        if (this.transformControls.object === intersects[i].object) {
+        if (this.transformControls.object === intersects[i].object.parent) {
           this.transformControls.setMode(this.transformControls.mode === 'translate' ? 'rotate' : 'translate');
         }
 
-        // should show the transform controls
-        this.transformControls.attach(intersects[i].object);
+        // should show the transform controls to the scene
+        this.transformControls.attach(intersects[i].object.parent);
         break;
       }
-      if (intersects[i].object.type === 'Line') {
+
+      if (intersects[i].object.type === 'Line'
+        // || (intersects[i].object.type === 'Mesh' && intersects[i].object.name === 'XYZ' && this.transformControls.object)
+      ) {
         console.log('Selected transform controls plane:', intersects[i].object.name);
         // should hide the transform controls
         // this.transformControls.detach();
         break;
       }
+
 
       if (intersects[i].object.name === 'ground') {
         this.selectedObject = null;
@@ -185,6 +191,9 @@ export class Stage {
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.orbitControls.enabled = !event.value;
+      // console.log('Dragging changed:', event.value, this.orbitControls.enabled);
+      console.log("Mounting Points", this.mountingPoints.map(mp => mp.position.toArray()))
+      this.dispatchEvent({type:'mounting-points-change', mountingPoints: this.mountingPoints })
     });
 
     this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
