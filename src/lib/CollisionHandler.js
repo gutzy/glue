@@ -1,5 +1,5 @@
-import { Box } from './Box.js';
-import { createOBB, adjustPosition } from './OBBUtils.js';
+import { Box } from './objects/Box.js';
+import { createOBB, adjustPosition } from './utils/OBBUtils.js';
 
 export class CollisionHandler {
   constructor(stage) {

@@ -1,9 +1,12 @@
 import { GUI } from 'dat.gui';
+import Config from './Config';
 
 export class GUIManager {
   constructor(stage) {
     this.stage = stage;
     this.initGUI();
+
+    this.updateConfig(this.stage.config);
   }
 
   initGUI() {
@@ -37,7 +40,8 @@ export class GUIManager {
       objectFolder.add(objectParams, 'stackable').name('Stackable');
       objectFolder.add(objectParams, 'addBox').name('Add Box');
 
-      // Panel for configuration settings
+      // Panel for configuration settings. Config params should be extracted from the config object, using
+      // the config class to ensure that the values are reactive.
       const configParams = {
         cameraType: this.stage.config.cameraType || 'perspective',
         modelScale: this.stage.config.modelScale || 1,
@@ -69,6 +73,16 @@ export class GUIManager {
       configFolder.open();
     } else {
       this.gui = window.gui;
+    }
+  }
+
+  updateConfig(config) {
+    console.log("Updating config", config);
+    if (config.showDebugGui) {
+      this.gui.show();
+    }
+    else {
+      this.gui.hide();
     }
   }
 }

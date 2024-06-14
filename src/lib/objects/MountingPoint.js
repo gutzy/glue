@@ -3,7 +3,6 @@ import * as THREE from 'three';
 export class MountingPoint extends THREE.Object3D {
   constructor(position, stage) {
     super();
-    this.position.copy(position);
 
     // Configurable colors
     const colorNorth = new THREE.Color(1, 0, 0);  // Red
@@ -74,5 +73,12 @@ export class MountingPoint extends THREE.Object3D {
     this.add(pyramid);
 
     stage.scene.add(this);
+  }
+
+  toObject() {
+    return {
+      position: { x: this.position.x, y: this.position.y, z: this.position.z},
+      rotation: { x: this.rotation.x, y: this.rotation.y, z: this.rotation.z}
+    };
   }
 }

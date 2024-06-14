@@ -3,16 +3,18 @@ import { SceneManager } from './SceneManager.js';
 import { ControlsManager } from './ControlsManager.js';
 import { CollisionHandler } from './CollisionHandler.js';
 import { GUIManager } from './GUIManager.js';
-import { Box } from './Box.js';
-import { MountingPoint } from './MountingPoint.js';
+import { Box } from './objects/Box.js';
+import { MountingPoint } from './objects/MountingPoint.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import {EventDispatcher} from "three";
+import Config from "./Config";
+import {BoundingBox} from "./objects/BoundingBox";
 
 export class Stage extends EventDispatcher {
-  constructor(container, config = {}) {
+  constructor(container, config = new Config()) {
     super();
     this.container = container;
     this.config = config;
@@ -24,7 +26,9 @@ export class Stage extends EventDispatcher {
 
     this.children = [];
     this.boxes = [];
+    this.boundingBoxes = [];
     this.mountingPoints = [];
+    this.models = [];
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.dragOffset = new THREE.Vector3();
@@ -69,6 +73,7 @@ export class Stage extends EventDispatcher {
       this.setCamera(newConfig.cameraType);
     }
     this.controlsManager.updateConfig(this.config);
+    this.guiManager.updateConfig(this.config);
   }
 
   addBox(x, y, z, width, height, depth, rotation = 0, stackable = false) {
@@ -101,11 +106,13 @@ export class Stage extends EventDispatcher {
             }
         });
       this.scene.add(gltf.scene);
+      this.models.push(gltf.scene);
       console.log('Loaded model:', gltf.scene);
     });
   }
 
   addMountingPoint(position = new THREE.Vector3(0, 10, 0)) {
+    if (!position instanceof THREE.Vector3) { position = new THREE.Vector3(position.x, position.y, position.z); }
     const mountingPoint = new MountingPoint(position, this);
     console.log('Adding mounting point at position:', position);
     this.mountingPoints.push(mountingPoint);
@@ -116,11 +123,32 @@ export class Stage extends EventDispatcher {
   removeMountingPoint(index) {
     const mountingPoint = this.mountingPoints[index];
     console.log('Removing mounting point:', mountingPoint)
-    if (mountingPoint && this.transformControls.object) {
+    if (mountingPoint) {
       this.transformControls.detach();
       this.scene.remove(mountingPoint);
       this.mountingPoints.splice(index, 1);
     }
+  }
+
+  addBoundingBox(box3) {
+    const boundingBox = new BoundingBox(box3, this);
+    this.boundingBoxes.push(boundingBox);
+    this.scene.add(boundingBox);
+
+    this.transformControls.attach(boundingBox);
+    boundingBox.addEventListener('change', () => {
+      this.dispatchEvent({ type: 'boundingBoxChanged', object: boundingBox });
+    });
+  }
+
+  removeBoundingBox(index) {
+    console.log('Removing bounding box:', index, this.boundingBoxes[index])
+    // if (this.boundingBoxes.length > 1) {
+      this.transformControls.detach();
+      const boundingBox = this.boundingBoxes[index];
+      this.scene.remove(boundingBox);
+      this.boundingBoxes.splice(index, 1);
+    // }
   }
 
   onMouseDown(event) {
@@ -128,8 +156,11 @@ export class Stage extends EventDispatcher {
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+    let itemType = null;
+
     for (let i = 0; i < intersects.length; i++) {
-      // console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
+      console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
       if (intersects[i].object.type === 'model') {
         this.selectedObject = intersects[i];
         console.log('Selected object:', this.selectedObject.object.type, this.selectedObject.object.name);
@@ -137,29 +168,67 @@ export class Stage extends EventDispatcher {
       }
 
       if (intersects[i].object.type === 'mountingPoint') {
-        // if transforms are already attached to this object, toggle their mode from translate to rotate
-        if (this.transformControls.object === intersects[i].object.parent) {
-          this.transformControls.setMode(this.transformControls.mode === 'translate' ? 'rotate' : 'translate');
+        itemType = 'mountingPoint';
+        console.log('Selected mounting point:', intersects[i].object.name);
+        // should show the transform controls to the scene
+        if (intersects[i].object.parent && intersects[i].object.parent.type === 'mountingPoint') {
+          this.transformControls.attach(intersects[i].object.parent);
+        }
+        else {
+          this.transformControls.attach(intersects[i].object);
         }
 
+        if (event.ctrlKey) {
+          this.transformControls.setMode(this.transformControls.mode === 'translate' ? 'rotate' : 'translate');
+        }
+      }
+
+      if (intersects[i].object.type === 'boundingBox') {
+        itemType = 'boundingBox';
+        console.log('Selected bounding box:', intersects[i].object.name);
         // should show the transform controls to the scene
-        this.transformControls.attach(intersects[i].object.parent);
+        if (intersects[i].object.parent && intersects[i].object.parent.type === 'boundingBox') {
+          this.transformControls.attach(intersects[i].object.parent);
+        }
+        else {
+          this.transformControls.attach(intersects[i].object);
+        }
+
+        if (event.ctrlKey) {
+          const mode = this.transformControls.mode;
+          if (mode === 'translate') {
+            this.transformControls.setMode('rotate')
+            // limit to Y axis rotation
+            console.log(this.transformControls)
+            this.transformControls.showX = false
+            this.transformControls.showY = true
+            this.transformControls.showZ = false
+            this.transformControls.setSpace('local')
+          }
+          else if (mode === 'rotate') {
+            this.transformControls.setMode('scale')
+            this.transformControls.showX = this.transformControls.showY = this.transformControls.showZ = true
+          }
+          else {
+            this.transformControls.setMode('translate')
+            this.transformControls.showX = this.transformControls.showY = this.transformControls.showZ = true
+          }
+        }
+      }
+      // XYZ control plane - when clicking this, if it's a bounding box or a mounting point, should toggle the transform controls type
+      // ... when holding the ctrl key
+      if (intersects[i].object.type === 'Mesh' && intersects[i].object.name === 'XYZ' && this.transformControls.object) {
+        if (itemType) break;
+      }
+
+      if (intersects[i].object.type === 'Line' && this.transformControls.object) {
+        itemType = 'something'
         break;
       }
 
-      if (intersects[i].object.type === 'Line'
-        // || (intersects[i].object.type === 'Mesh' && intersects[i].object.name === 'XYZ' && this.transformControls.object)
-      ) {
-        console.log('Selected transform controls plane:', intersects[i].object.name);
-        // should hide the transform controls
-        // this.transformControls.detach();
-        break;
-      }
 
-
-      if (intersects[i].object.name === 'ground') {
+      if (intersects[i].object.name === 'ground' && itemType === null) {
         this.selectedObject = null;
-        console.log('Selected floor:');
         // should hide the transform controls
         this.transformControls.detach();
         break;
@@ -192,7 +261,8 @@ export class Stage extends EventDispatcher {
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.orbitControls.enabled = !event.value;
       // console.log('Dragging changed:', event.value, this.orbitControls.enabled);
-      console.log("Mounting Points", this.mountingPoints.map(mp => mp.position.toArray()))
+      // console.log("Mounting Points", this.mountingPoints.map(mp => mp.position.toArray()))
+      this.dispatchEvent({type:'bounding-boxes-change', boundingBoxes: this.boundingBoxes })
       this.dispatchEvent({type:'mounting-points-change', mountingPoints: this.mountingPoints })
     });
 
