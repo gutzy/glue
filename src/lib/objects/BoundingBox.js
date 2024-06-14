@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 export class BoundingBox extends THREE.Object3D {
-  constructor({min, max}, name = 'BoundingBox') {
+  constructor({min, max, color}, name = 'BoundingBox') {
     super();
     this.name = name;
 
-    console.log('Bounding Box created:', {max, min});
+    console.log('Bounding Box created:', {max, min, color});
 
     const boxGeometry = new THREE.BoxGeometry(
       max.x - min.x,
@@ -59,6 +59,11 @@ export class BoundingBox extends THREE.Object3D {
       (box.max.y + box.min.y) / 2,
       (box.max.z + box.min.z) / 2
     );
+  }
+
+  setColor(color) {
+    this.box.material.color.set(color);
+    this.transBox.material.color.set(color);
   }
 
   updateGeometry(min, max) {

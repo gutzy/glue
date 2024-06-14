@@ -14,10 +14,10 @@ import Config from "./Config";
 import {BoundingBox} from "./objects/BoundingBox";
 
 export class Stage extends EventDispatcher {
-  constructor(container, config = new Config()) {
+  constructor(container, config = {}) {
     super();
     this.container = container;
-    this.config = config;
+    this.config = new Config(config);
     this.scene = new THREE.Scene();
     this.setCamera(config.cameraType || 'perspective');
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -130,9 +130,12 @@ export class Stage extends EventDispatcher {
     }
   }
 
-  addBoundingBox(box3) {
-    const boundingBox = new BoundingBox(box3, this);
+  addBoundingBox(minMax) {
+    const color = this.config.boundingBoxColors[this.boundingBoxes.length % this.config.boundingBoxColors.length];
+    const boundingBox = new BoundingBox({...minMax}, this);
+    boundingBox.setColor(color);
     this.boundingBoxes.push(boundingBox);
+    console.log(this.config)
     this.scene.add(boundingBox);
 
     this.transformControls.attach(boundingBox);
