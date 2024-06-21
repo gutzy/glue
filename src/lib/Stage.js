@@ -130,9 +130,9 @@ export class Stage extends EventDispatcher {
     }
   }
 
-  addBoundingBox(minMax) {
+  addBoundingBox(refObject) {
     const color = this.config.boundingBoxColors[this.boundingBoxes.length % this.config.boundingBoxColors.length];
-    const boundingBox = new BoundingBox({...minMax}, this);
+    const boundingBox = new BoundingBox(refObject, this);
     boundingBox.setColor(color);
     this.boundingBoxes.push(boundingBox);
     console.log(this.config)
@@ -142,6 +142,8 @@ export class Stage extends EventDispatcher {
     boundingBox.addEventListener('change', () => {
       this.dispatchEvent({ type: 'boundingBoxChanged', object: boundingBox });
     });
+
+    return boundingBox
   }
 
   removeBoundingBox(index) {
@@ -265,6 +267,7 @@ export class Stage extends EventDispatcher {
       this.orbitControls.enabled = !event.value;
       // console.log('Dragging changed:', event.value, this.orbitControls.enabled);
       // console.log("Mounting Points", this.mountingPoints.map(mp => mp.position.toArray()))
+      console.log("Updating all:", this.boundingBoxes.map(bb => bb.position.toArray()), this.mountingPoints.map(mp => mp.position.toArray()))
       this.dispatchEvent({type:'bounding-boxes-change', boundingBoxes: this.boundingBoxes })
       this.dispatchEvent({type:'mounting-points-change', mountingPoints: this.mountingPoints })
     });

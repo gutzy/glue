@@ -76,6 +76,7 @@ export class MountingPoint extends THREE.Object3D {
   }
 
   toObject() {
+    console.log("To Object")
     return {
       position: { x: this.position.x, y: this.position.y, z: this.position.z},
       rotation: { x: this.rotation.x, y: this.rotation.y, z: this.rotation.z}
