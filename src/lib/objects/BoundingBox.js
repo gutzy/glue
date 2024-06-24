@@ -1,24 +1,46 @@
 import * as THREE from 'three';
 
 export class BoundingBox extends THREE.Object3D {
-  constructor(refObject, name = 'BoundingBox') {
+  constructor(refObject, name = 'BoundingBox', data) {
     super();
     this.name = name;
+    this.locked = false;
 
     const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
     const translucentMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: false, transparent: true, opacity: 0.25 });
 
-    if (refObject !== undefined) {
+    if (refObject) {
         this.box = this.setFromObject(refObject, wireframeMaterial);
         this.transBox = this.setFromObject(refObject, translucentMaterial);
+
+        // get box bounding box
+        const boxCoords = new THREE.Box3().setFromObject(refObject);
+
+        // set position based on boxCoords
+        this.position.set(
+            (boxCoords.max.x + boxCoords.min.x) / 2,
+            (boxCoords.max.y + boxCoords.min.y) / 2,
+            (boxCoords.max.z + boxCoords.min.z) / 2
+        );
+
+        // ..then, offset the child elements to the center of the bounding box
+        this.box.position.set(0,0,0);
+        this.transBox.position.set(0,0,0);
     }
     else {
-        this.box = this.setFromSize(1,1,1, wireframeMaterial);
-        this.transBox = this.setFromSize(1,1,1, translucentMaterial);
-    }
-    const boxCoords = new THREE.Box3().setFromObject(this.box);
-    console.log('Bounding Box coords:', boxCoords);
+        if (data !== undefined) {
+            const {max, min, position, rotation} = data;
 
+            this.box = this.setFromSize(max.x - min.x, max.y - min.y, max.z - min.z, wireframeMaterial)
+            this.transBox = this.setFromSize(max.x - min.x, max.y - min.y, max.z - min.z, translucentMaterial)
+            this.position.set(position.x, position.y, position.z);
+            this.rotation.y = rotation;
+        }
+        else {
+          this.box = this.setFromSize(1,1,1, wireframeMaterial);
+          this.transBox = this.setFromSize(1,1,1, translucentMaterial);
+        }
+    }
     this.add(this.box);
     this.add(this.transBox);
 
@@ -72,8 +94,12 @@ export class BoundingBox extends THREE.Object3D {
     );
   }
 
+  setTransparentBoxVisibility(visible) {
+      this.transBox.visible = visible;
+  }
+
   toObject() {
-    console.log("Returning bounding box min, max and rotation on the Y axis")
+  this.box.geometry.computeBoundingBox()
     return {
       min: this.box.geometry.boundingBox.min,
       max: this.box.geometry.boundingBox.max,

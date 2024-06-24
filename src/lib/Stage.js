@@ -111,13 +111,19 @@ export class Stage extends EventDispatcher {
     });
   }
 
-  addMountingPoint(position = new THREE.Vector3(0, 10, 0)) {
+  addMountingPoint(position = new THREE.Vector3(0, 10, 0), rotation = new THREE.Euler(0, 0, 0)) {
     if (!position instanceof THREE.Vector3) { position = new THREE.Vector3(position.x, position.y, position.z); }
-    const mountingPoint = new MountingPoint(position, this);
-    console.log('Adding mounting point at position:', position);
+    if (!rotation instanceof THREE.Euler) { rotation = new THREE.Euler(rotation.x, rotation.y, rotation.z); }
+    console.log('Adding mounting point at position:', position, rotation);
+    const mountingPoint = new MountingPoint(position, rotation, this);
     this.mountingPoints.push(mountingPoint);
     this.scene.add(mountingPoint);
     this.transformControls.attach(mountingPoint);
+    mountingPoint.addEventListener('change', () => {
+        this.dispatchEvent({ type: 'mountingPointChanged', object: mountingPoint });
+    })
+
+    return mountingPoint
   }
 
   removeMountingPoint(index) {
@@ -130,12 +136,11 @@ export class Stage extends EventDispatcher {
     }
   }
 
-  addBoundingBox(refObject) {
+  addBoundingBox(refObject, data) {
     const color = this.config.boundingBoxColors[this.boundingBoxes.length % this.config.boundingBoxColors.length];
-    const boundingBox = new BoundingBox(refObject, this);
+    const boundingBox = new BoundingBox(refObject, this, data);
     boundingBox.setColor(color);
     this.boundingBoxes.push(boundingBox);
-    console.log(this.config)
     this.scene.add(boundingBox);
 
     this.transformControls.attach(boundingBox);
@@ -156,15 +161,23 @@ export class Stage extends EventDispatcher {
     // }
   }
 
+  setBoundingBoxLocked(index, locked) {
+    this.boundingBoxes[index].locked = !!locked;
+    this.boundingBoxes[index].setTransparentBoxVisibility(!locked);
+    this.transformControls.detach();
+  }
+
   onMouseDown(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
     let itemType = null;
+    let parent
 
     for (let i = 0; i < intersects.length; i++) {
+      parent = intersects[i].object.parent || null;
+
       console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
       if (intersects[i].object.type === 'model') {
         this.selectedObject = intersects[i];
@@ -176,30 +189,38 @@ export class Stage extends EventDispatcher {
         itemType = 'mountingPoint';
         console.log('Selected mounting point:', intersects[i].object.name);
         // should show the transform controls to the scene
-        if (intersects[i].object.parent && intersects[i].object.parent.type === 'mountingPoint') {
-          this.transformControls.attach(intersects[i].object.parent);
+        if (parent && parent.type === 'mountingPoint') {
+          console.log("Father")
+          this.transformControls.attach(parent);
         }
         else {
+          console.log("Son of",parent.type)
           this.transformControls.attach(intersects[i].object);
         }
 
-        if (event.ctrlKey) {
+        if (event.shiftKey) {
+          console.log('Shift key pressed');
           this.transformControls.setMode(this.transformControls.mode === 'translate' ? 'rotate' : 'translate');
         }
       }
 
       if (intersects[i].object.type === 'boundingBox') {
-        itemType = 'boundingBox';
         console.log('Selected bounding box:', intersects[i].object.name);
         // should show the transform controls to the scene
-        if (intersects[i].object.parent && intersects[i].object.parent.type === 'boundingBox') {
-          this.transformControls.attach(intersects[i].object.parent);
+        if (parent && parent.type === 'boundingBox') {
+          if (!parent.locked) {
+            itemType = 'boundingBox';
+            this.transformControls.attach(parent);
+          }
         }
         else {
-          this.transformControls.attach(intersects[i].object);
+          if (!intersects[i].object.locked) {
+            itemType = 'boundingBox';
+            this.transformControls.attach(intersects[i].object);
+          }
         }
 
-        if (event.ctrlKey) {
+        if (event.shiftKey) {
           const mode = this.transformControls.mode;
           if (mode === 'translate') {
             this.transformControls.setMode('rotate')

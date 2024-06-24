@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
 export class MountingPoint extends THREE.Object3D {
-  constructor(position, stage) {
+  constructor(position, rotation, stage) {
     super();
+
+    this.name = 'MountingPoint';
 
     // Configurable colors
     const colorNorth = new THREE.Color(1, 0, 0);  // Red
@@ -72,12 +74,18 @@ export class MountingPoint extends THREE.Object3D {
     pyramid.type = 'mountingPoint';
     this.add(pyramid);
 
+    this.type = 'mountingPoint';
+
+    this.position.set(position.x, position.y, position.z);
+    this.rotation.set(rotation.x, rotation.y, rotation.z);
+
     stage.scene.add(this);
   }
 
   toObject() {
     console.log("To Object")
     return {
+      name: this.name,
       position: { x: this.position.x, y: this.position.y, z: this.position.z},
       rotation: { x: this.rotation.x, y: this.rotation.y, z: this.rotation.z}
     };
