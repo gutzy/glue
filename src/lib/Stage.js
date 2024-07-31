@@ -96,19 +96,38 @@ export class Stage extends EventDispatcher {
     }
   }
 
-  loadModel(contents) {
-    this.loader.parse(contents, '', (gltf) => {
-      gltf.scene.scale.set(this.config.modelScale || 1, this.config.modelScale || 1, this.config.modelScale || 1);
-      // set type attribute, for collision detection
-        gltf.scene.traverse((child) => {
-            if (child.isMesh) {
-            child.type = 'model';
-            }
-        });
-      this.scene.add(gltf.scene);
-      this.models.push(gltf.scene);
-      console.log('Loaded model:', gltf.scene);
+  async loadModel(contents, translation = null, rotation = null) {
+    return new Promise((resolve, reject) => {
+      this.loader.parse(contents, '', (gltf) => {
+        gltf.scene.scale.set(this.config.modelScale || 1, this.config.modelScale || 1, this.config.modelScale || 1);
+        // set type attribute, for collision detection
+          gltf.scene.traverse((child) => {
+              if (child.isMesh) {
+              child.type = 'model';
+              }
+          });
+        this.scene.add(gltf.scene);
+        this.models.push(gltf.scene);
+        console.log('Loaded model:', gltf.scene);
+        if (translation) {
+          console.log('Setting translation:', translation);
+          gltf.scene.position.set(translation.x, translation.y, translation.z);
+        }
+        if (rotation) {
+          console.log('Setting rotation:', rotation);
+          gltf.scene.rotation.set(rotation.x, rotation.y, rotation.z);
+        }
+        resolve(gltf.scene);
+      });
     });
+  }
+
+  async removeModel(model) {
+    const index = this.models.indexOf(model);
+    if (index > -1) {
+      this.scene.remove(model);
+      this.models.splice(index, 1);
+    }
   }
 
   addMountingPoint(position = new THREE.Vector3(0, 10, 0), rotation = new THREE.Euler(0, 0, 0)) {
