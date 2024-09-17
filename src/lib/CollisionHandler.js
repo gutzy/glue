@@ -24,6 +24,7 @@ export class CollisionHandler {
       draggedObject.lockStackedItems();
     }
 
+
     // Function to handle stacking recursively
     const handleStacking = (object, stackableObject, isStacked = false) => {
       const stackableOBB = createOBB(stackableObject);
@@ -87,6 +88,8 @@ export class CollisionHandler {
       this.stage.children.forEach(box => {
         if (box === draggedObject || box.locked || !box.isMesh) return;
 
+        console.log('B',{box})
+
         const otherOBB = createOBB(box);
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
@@ -129,5 +132,8 @@ export class CollisionHandler {
     this.stage.children.forEach(box => {
       if (box instanceof Box) box.setColorBasedOnCollision(collidingObjects, hasCollision && box === draggedObject);
     });
+
+    draggedObject.dispatchEvent({ type: 'change' });
+
   }
 }

@@ -1,13 +1,22 @@
 import * as THREE from 'three';
 export class SceneManager {
-  constructor(scene) {
+
+  constructor(scene, camera, container, config) {
     this.scene = scene;
+    this.camera = camera;
+    this.container = container;
+    this.config = config;
     this.initScene();
   }
 
   initScene() {
-    this.addLights();
-    this.createFloor();
+    this.setupSceneSettings(this.config.backgroundColor)
+    this.addLights()
+  }
+
+  setupSceneSettings(backgroundColor) {
+    this.scene.background = new THREE.Color(backgroundColor || 0x000000);
+    this.scene.fog = new THREE.Fog(0x000000, 1, 1000);
   }
 
   addLights() {
@@ -18,9 +27,15 @@ export class SceneManager {
     this.scene.add(light);
   }
 
+  createGridHelper() {
+    const gridHelper = new THREE.GridHelper(10, 20);
+    this.scene.add(gridHelper);
+    gridHelper.position.y = -0.01;
+  }
+
   createFloor() {
-    const geometry = new THREE.PlaneGeometry(1000, 1000);
-    const material = new THREE.MeshBasicMaterial({ color: 0x666666 });
+    const geometry = new THREE.PlaneGeometry(10, 10);
+    const material = new THREE.MeshNormalMaterial({ color: 0x666666, opacity: 0.01 });
     const ground = new THREE.Mesh(geometry, material);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = 0;

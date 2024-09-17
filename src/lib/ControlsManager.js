@@ -1,6 +1,8 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
+// rotating helper
+import {RotatingHelperEdge, RotatingHelper} from "../lib/utils/RotatingHelper";
 
 export class ControlsManager {
   constructor(camera, domElement, stage, config = {}) {
@@ -29,6 +31,9 @@ export class ControlsManager {
       this.orbitControls.enabled = true;
     });
 
+    // add listener for clicking
+    this.domElement.addEventListener('click', this.onClick.bind(this.stage), false);
+
     // Updated event listener for TransformControls
     this.transformControls.addEventListener('dragging-changed', (event) => {
       console.log('Dragging changed:', event.value, this.orbitControls.enabled);
@@ -38,6 +43,21 @@ export class ControlsManager {
     this.domElement.addEventListener('mousemove', this.stage.onMouseMove.bind(this.stage), false);
 
     this.setControls();
+  }
+
+  onClick(event) {
+    if (this.transformControls.object) {
+      this.transformControls.detach();
+    }
+
+    if (this.config.rotatingHelper) {
+      // const intersects = this.stage.getIntersects(event);
+      // if (intersects.length > 0) {
+      //   const object = intersects[0].object;
+      //   this.transformControls.attach(object);
+      // }
+      console.log("Rotating helper")
+    }
   }
 
   setTransformMode(mode) {

@@ -12,6 +12,14 @@ export class Box extends THREE.Mesh {
     this.stackable = stackable;
     this.stackedTo = null;
     this.stackedItems = new Set();
+    this.type = 'box'
+  }
+
+  setRotation(rotation) {
+    let lastRotation = this.rotation.y;
+    this.rotation.y = THREE.MathUtils.degToRad(rotation);
+    this.dispatchEvent({ type: 'change' });
+    this.rotateStackedItems(this.rotation.y - lastRotation);
   }
 
   stack(object) {
@@ -78,6 +86,14 @@ export class Box extends THREE.Mesh {
       );
       // Recursively move items stacked on top of this item
       item.moveStackedItems();
+      item.dispatchEvent({ type: 'change' });
+    });
+  }
+
+  rotateStackedItems(amount) {
+    this.stackedItems.forEach(item => {
+      item.rotation.y += (amount);
+      item.dispatchEvent({ type: 'change' });
     });
   }
 
