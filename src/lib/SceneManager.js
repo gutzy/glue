@@ -27,6 +27,38 @@ export class SceneManager {
     this.scene.add(light);
   }
 
+  applyZAxisWaves(plane) {
+    const { position } = plane.geometry.attributes;
+    const waveFrequency = 14;  // Frequency of the wave
+    const waveAmplitude = 0.05;  // Amplitude of the wave for a subtle effect
+
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i);  // Use X position to calculate the wave
+      const z = position.getZ(i);  // Original Z position (should be 0 initially)
+
+      // Apply a sine wave to the Z position to create the wavy effect
+      const wave = Math.sin(waveFrequency * x) * waveAmplitude;
+      position.setZ(i, z + wave);  // Modify Z (depth) axis
+    }
+
+    position.needsUpdate = true;  // Ensure the geometry is updated
+  }
+
+  // create a plane in the back of the stage
+  createStageBackdrop() {
+    const geometry = new THREE.PlaneGeometry(10, 5, 80, 3);
+    const material = new THREE.MeshStandardMaterial({ color: 0x881111, side: THREE.DoubleSide });
+    const plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0, 2.5, -4.75);
+    this.backdrop = plane;
+    this.applyZAxisWaves(plane);
+    this.scene.add(plane);
+  }
+
+  removeStageBackdrop() {
+    this.scene.remove(this.backdrop);
+  }
+
   createGridHelper() {
     const gridHelper = new THREE.GridHelper(10, 20);
     this.scene.add(gridHelper);
@@ -34,11 +66,11 @@ export class SceneManager {
   }
 
   createFloor() {
-    const geometry = new THREE.PlaneGeometry(10, 10);
-    const material = new THREE.MeshNormalMaterial({ color: 0x666666, opacity: 0.01 });
+    const geometry = new THREE.BoxGeometry(10, 10, 0.3);
+    const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
     const ground = new THREE.Mesh(geometry, material);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
+    ground.position.y = -0.15;
     ground.name = 'ground';
     this.scene.add(ground);
   }

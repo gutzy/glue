@@ -52,6 +52,9 @@ export class Stage extends EventDispatcher {
     this.animate();
     window.addEventListener('resize', () => this.onWindowResize(), false);
     window.addEventListener('keydown', (event) => this.onKeyDown(event), false);
+
+    this.camera.zoom = 30;
+    setTimeout(() => this.animateCameraZoom())
   }
 
   add(item) {
@@ -115,12 +118,14 @@ export class Stage extends EventDispatcher {
   }
 
   addBox(x, y, z, width, height, depth, rotation = 0, stackable = false) {
-    console.log('Adding box!!', { x, y, z, width, height, depth, rotation, stackable });
+    // console.log('Adding box!!', { x, y, z, width, height, depth, rotation, stackable });
     this.transformControls.detach();
     const box = new Box(x, y, z, width, height, depth, rotation, stackable);
     this.scene.add(box);
     this.children.push(box);
     this.boxes.push(box);
+
+    box.visible = false;
 
     return box
   }
@@ -132,7 +137,7 @@ export class Stage extends EventDispatcher {
       this.scene.remove(box);
       this.children.splice(index, 1);
     }
-    console.log({boxIndex, box})
+    // console.log({boxIndex, box})
     if (boxIndex > -1) {
       this.boxes.splice(boxIndex, 1);
     }
@@ -142,7 +147,7 @@ export class Stage extends EventDispatcher {
     var model = await GLTFModel(url, {})
     model.glueId = ++this.glueId
     this.scene.add(model)
-    console.log('Loaded GLTF model:', model);
+    // console.log('Loaded GLTF model:', model);
     const sizeBox = new THREE.Box3().setFromObject(model);
 
     const box = this.addBox(model.position.x, model.position.y, model.position.z, sizeBox.max.x - sizeBox.min.x, sizeBox.max.y - sizeBox.min.y, sizeBox.max.z - sizeBox.min.z, 0, stackable)
@@ -163,7 +168,7 @@ export class Stage extends EventDispatcher {
   }
 
   async loadModel(contents, translation = null, rotation = null) {
-    console.log({contents})
+    // console.log({contents})
 
     return new Promise((resolve, reject) => {
       this.loader.parse(contents, '', (gltf) => {
@@ -177,13 +182,13 @@ export class Stage extends EventDispatcher {
         gltf.scene.glueId = ++this.glueId
         this.scene.add(gltf.scene);
         this.models.push(gltf.scene);
-        console.log('Loaded model:', gltf.scene);
+        // console.log('Loaded model:', gltf.scene);
         if (translation) {
-          console.log('Setting translation:', translation);
+          // console.log('Setting translation:', translation);
           gltf.scene.position.set(translation.x, translation.y, translation.z);
         }
         if (rotation) {
-          console.log('Setting rotation:', rotation);
+          // console.log('Setting rotation:', rotation);
           gltf.scene.rotation.set(rotation.x, rotation.y, rotation.z);
         }
         resolve(gltf.scene);
@@ -193,7 +198,7 @@ export class Stage extends EventDispatcher {
 
   async removeModel(model) {
     const index = this.models.indexOf(model);
-    console.log('Removing model:', {model, index})
+    // console.log('Removing model:', {model, index})
     if (index > -1) {
       this.scene.remove(this.models[index]);
       this.models.splice(index, 1);
@@ -203,7 +208,7 @@ export class Stage extends EventDispatcher {
   addMountingPoint(position = new THREE.Vector3(0, 10, 0), rotation = new THREE.Euler(0, 0, 0)) {
     if (!position instanceof THREE.Vector3) { position = new THREE.Vector3(position.x, position.y, position.z); }
     if (!rotation instanceof THREE.Euler) { rotation = new THREE.Euler(rotation.x, rotation.y, rotation.z); }
-    console.log('Adding mounting point at position:', position, rotation);
+    // console.log('Adding mounting point at position:', position, rotation);
     const mountingPoint = new MountingPoint(position, rotation, this);
     this.mountingPoints.push(mountingPoint);
     this.scene.add(mountingPoint);
@@ -218,7 +223,7 @@ export class Stage extends EventDispatcher {
 
   removeMountingPoint(index) {
     const mountingPoint = this.mountingPoints[index];
-    console.log('Removing mounting point:', mountingPoint)
+    // console.log('Removing mounting point:', mountingPoint)
     if (mountingPoint) {
       this.transformControls.detach();
       this.scene.remove(mountingPoint);
@@ -243,7 +248,7 @@ export class Stage extends EventDispatcher {
   }
 
   removeBoundingBox(index) {
-    console.log('Removing bounding box:', index, this.boundingBoxes[index])
+    // console.log('Removing bounding box:', index, this.boundingBoxes[index])
     // if (this.boundingBoxes.length > 1) {
       this.transformControls.detach();
       const boundingBox = this.boundingBoxes[index];
@@ -269,7 +274,7 @@ export class Stage extends EventDispatcher {
 
     intersects = intersects.filter(intersect => intersect.object.visible)
 
-    console.log('---------')
+    // console.log('---------')
     for (let i = 0; i < intersects.length; i++) {
       parent = intersects[i].object.parent || null;
 
@@ -304,7 +309,6 @@ export class Stage extends EventDispatcher {
       // console.log('Intersected', intersects[i].object.type, intersects[i].object.name);
       if (intersects[i].object.type === 'model') {
         this.selectedObject = intersects[i];
-        console.log("Bobobob")
         // console.log('Selected object:', this.selectedObject.object.type, this.selectedObject.object.name);
         break;
       }
@@ -360,7 +364,6 @@ export class Stage extends EventDispatcher {
         itemType = 'something'
         break;
       }
-
 
       if (intersects[i].object.name === 'ground' && itemType === null && !something) {
         this.dispatchEvent({type:'ground-clicked'})
@@ -499,6 +502,27 @@ export class Stage extends EventDispatcher {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // set camera zoom from 1 to 5.5 over 1 second, rotate 360 degrees too
+  animateCameraZoom() {
+    const zoom = this.camera.zoom
+    const targetZoom = 8.5
+    const duration = 1000
+    const start = Date.now()
+    const animate = () => {
+      const now = Date.now()
+      const elapsed = now - start
+      const progress = elapsed / duration
+      this.camera.zoom = zoom + (targetZoom - zoom) * progress
+      this.camera.updateProjectionMatrix()
+      this.renderer.render(this.scene, this.camera)
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    animate()
+
   }
 
   onWindowResize() {

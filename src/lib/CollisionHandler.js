@@ -88,8 +88,6 @@ export class CollisionHandler {
       this.stage.children.forEach(box => {
         if (box === draggedObject || box.locked || !box.isMesh) return;
 
-        console.log('B',{box})
-
         const otherOBB = createOBB(box);
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
