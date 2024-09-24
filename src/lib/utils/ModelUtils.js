@@ -14,7 +14,6 @@ export function BoxModel(width, height, depth, color = 0x000000, {receiveShadow 
 }
 
 export function copyName(name) {
-    console.log({name})
     // if name ends with "copy" or "copy {number}", don't add copy but increment the number
     const match = name.match(/copy(\s(\d+))?$/);
     if (match) {
@@ -100,7 +99,7 @@ export function getBlueprintMesh(blueprint) {
     return children[0];
 }
 
-export function GLTFModel(url, {receiveShadow = false, castShadow = false}) {
+export function GLTFModel(url, {receiveShadow = false, castShadow = false}, onPercent = () => {}) {
     if (_modelCache[url]) {
         // console.log("Using cached model")
         // restore the original texture
@@ -129,7 +128,7 @@ export function GLTFModel(url, {receiveShadow = false, castShadow = false}) {
             mesh.add(model);
             resolve(mesh);
         }, (xhr) => {
-            // console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            onPercent(xhr.loaded / xhr.total * 100);
         }, (error) => {
             console.log('An error happened', error);
             reject(error);

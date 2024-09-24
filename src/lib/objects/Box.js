@@ -15,6 +15,12 @@ export class Box extends THREE.Mesh {
     this.type = 'box'
   }
 
+  setPosition(x, y, z) {
+    this.position.set(x, y, z);
+    this.dispatchEvent({ type: 'change' });
+    this.moveStackedItems();
+  }
+
   setRotation(rotation) {
     let lastRotation = this.rotation.y;
     this.rotation.y = THREE.MathUtils.degToRad(rotation);
@@ -94,6 +100,9 @@ export class Box extends THREE.Mesh {
     this.stackedItems.forEach(item => {
       item.rotation.y += (amount);
       item.dispatchEvent({ type: 'change' });
+      if (item.stackedItems) {
+        item.rotateStackedItems(amount);
+      }
     });
   }
 

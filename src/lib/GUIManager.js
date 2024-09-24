@@ -77,7 +77,6 @@ export class GUIManager {
   }
 
   updateConfig(config) {
-    console.log("Updating config", config);
     if (config.showDebugGui) {
       this.gui.show();
     }

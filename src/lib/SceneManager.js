@@ -22,7 +22,7 @@ export class SceneManager {
   addLights() {
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(0, 200, 100);
-    const ambientLight = new THREE.AmbientLight(0x606060); // soft white light
+    const ambientLight = new THREE.AmbientLight(0xffffff); // soft white light
     this.scene.add(ambientLight);
     this.scene.add(light);
   }

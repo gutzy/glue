@@ -1,6 +1,7 @@
 export default class Config {
   constructor(config) {
-    this.cameraType = 'perspective';
+    this.cameraType = 'orthographic';
+    this.cameraInitialZoom = 12;
     this.cameraPosX = 0;
     this.cameraPosY = 100;
     this.cameraPosZ = 100;
@@ -20,6 +21,7 @@ export default class Config {
 
     updateConfig(config) {
       if (config.cameraType !== undefined) this.cameraType = config.cameraType;
+      if (config.cameraInitialZoom !== undefined) this.cameraInitialZoom = config.cameraInitialZoom;
       if (config.cameraPosX !== undefined) this.cameraPosX = config.cameraPosX;
       if (config.cameraPosY !== undefined) this.cameraPosY = config.cameraPosY;
       if (config.cameraPosZ !== undefined) this.cameraPosZ = config.cameraPosZ;
