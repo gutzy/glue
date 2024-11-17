@@ -68,7 +68,6 @@ export class BoundingBox extends THREE.Object3D {
 
   setFromSize(w,h,d,material) {
     const geometry = new THREE.BoxGeometry(w,h,d);
-    // this.box.position.set(0,0,0);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(0,0,0);
     mesh.type = 'boundingBox';

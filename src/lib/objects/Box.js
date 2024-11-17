@@ -16,6 +16,9 @@ export class Box extends THREE.Mesh {
   }
 
   setPosition(x, y, z) {
+    if  (y === null) { // assume it's on the ground?
+      y = this.geometry.parameters.height / 2
+    }
     this.position.set(x, y, z);
     this.dispatchEvent({ type: 'change' });
     this.moveStackedItems();

@@ -24,6 +24,7 @@ export class ControlsManager {
     });
 
     this.domElement.addEventListener('mousemove', this.stage.onMouseMove.bind(this.stage), false);
+    this.domElement.addEventListener('mouseup', this.stage.onMouseUp.bind(this.stage), false);
 
     this.configureOrbitControls()
   }
@@ -71,7 +72,7 @@ export class ControlsManager {
     this.orbitControls.enabled = true;
     this.orbitControls.enablePan = this.config.enablePan || false;
     this.orbitControls.enableZoom = this.config.enableZoom || false;
-    this.orbitControls.enableRotate = this.config.enableRotate || false;
+    this.orbitControls.enableRotate = (this.config.enableRotate && !this.config.navigationCube) || false;
     this.orbitControls.update();
   }
 
@@ -91,13 +92,17 @@ export class ControlsManager {
   }
 
   resetCameraPosition() {
-    this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
-    this.orbitControls.target.set(0, 0, 0);
-    this.camera.lookAt(0, 0, 0);
 
     // if it's perspective, reset camera position to half the pos
     if (this.config.cameraType === 'perspective') {
       this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2);
+      this.orbitControls.target.set(0, this.config.lookAtY, 0);
+      this.camera.lookAt(0, this.config.lookAtY, 0);
+    }
+    else {
+      this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
+      this.orbitControls.target.set(0, 0, 0);
+      this.camera.lookAt(0, 0, 0);
     }
   }
 
@@ -195,14 +200,14 @@ export class ControlsManager {
           this.camera.position.x = -(30+(this.config.cameraPosX/2)) + (30 * progress)
           this.camera.position.y = (30+(this.config.cameraPosY/2)) - (30 * progress)
           this.camera.position.z = ((this.config.cameraPosZ/2) * progress)
-          this.camera.lookAt(0, 0, 0)
+          this.camera.lookAt(0, this.config.lookAtY, 0)
           // this.camera.updateProjectionMatrix()
           if (progress < 1) {
             requestAnimationFrame(animate)
           }
           else {
             this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2)
-            this.camera.lookAt(0,0,0)
+            this.camera.lookAt(0,this.config.lookAtY,0)
           }
         }
     }

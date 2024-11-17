@@ -10,6 +10,7 @@ import {EventDispatcher, OrthographicCamera, PerspectiveCamera} from "three";
 import Config from "./Config";
 import {BoundingBox} from "./objects/BoundingBox";
 import {GLTFModel} from "./utils/ModelUtils";
+import {initNavCube, updateNavCubePosition} from "./utils/NavigationCube";
 
 export class Stage extends EventDispatcher {
   constructor(container, config = {}) {
@@ -51,6 +52,12 @@ export class Stage extends EventDispatcher {
 
     setTimeout(() => this.controlsManager.animateCameraZoom())
     this.controlsManager.initDragControls(this.boxes, this.renderer.domElement);
+
+    // if there's a navigation cube in the settings, add it
+    setTimeout(() => {
+      this.navScene = this.config.navigationCube ? initNavCube(this.config, this.camera) : null;
+    }, 100)
+
   }
 
   add(item) {
@@ -84,7 +91,19 @@ export class Stage extends EventDispatcher {
         this.remove(item.attachedModel)
       }
       // item.visible = false;
-      item.parent.remove(item)
+      if (item.parent) item.parent.remove(item)
+      if (item.boxId) {
+        console.log("BOX ID", item.boxId)
+        const box = this.getByUniqueId(item.boxId)
+        this.scene.remove(box)
+        this.removeByType('boxHelper')
+
+        // remove from boxes array
+        const index = this.boxes.indexOf(box);
+        if (index > -1) {
+          this.boxes.splice(index, 1);
+        }
+      }
       this.scene.remove(item);
     }
   }
@@ -101,7 +120,7 @@ export class Stage extends EventDispatcher {
     }
 
     this.camera.position.set(0, this.config.cameraPosY, this.config.cameraPosZ);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.lookAt(0, this.config.lookAtY, 0);
 
     if (this.controlsManager) {
       this.controlsManager.setCamera(this.camera);
@@ -330,6 +349,17 @@ export class Stage extends EventDispatcher {
     this.mouse.x = (event.clientX / this.container.clientWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / this.container.clientHeight) * 2 + 1;
     this.updateRaycaster(); // Update raycaster on mouse move
+
+    // for dispatching the stage coordinates, get them:
+    let stageCoordinates = new THREE.Vector3();
+    this.raycaster.ray.intersectPlane(this.intersectPlane, stageCoordinates);
+    event.stageCoords = stageCoordinates;
+
+    this.dispatchEvent({type: 'mouse-move', event});
+  }
+
+  onMouseUp(event) {
+    this.dispatchEvent({type: 'mouse-up', event});
   }
 
   onKeyDown(event) {
@@ -371,6 +401,14 @@ export class Stage extends EventDispatcher {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
+
+    // if there's a nav scene, render it
+    if (this.navScene) {
+      updateNavCubePosition()
+      this.renderer.autoClear = false; // Prevent clearing the main scene
+      this.renderer.clearDepth(); // Clear depth buffer for the overlay scene
+      this.renderer.render(this.navScene.scene, this.navScene.camera);
+    }
   }
 
   onWindowResize() {
