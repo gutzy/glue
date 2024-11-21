@@ -10,7 +10,7 @@ import {EventDispatcher, OrthographicCamera, PerspectiveCamera} from "three";
 import Config from "./Config";
 import {BoundingBox} from "./objects/BoundingBox";
 import {GLTFModel} from "./utils/ModelUtils";
-import {initNavCube, updateNavCubePosition} from "./utils/NavigationCube";
+import {initNavCube, resetNavCameraType, updateNavCubePosition, updateNavCubeRotation} from "./utils/NavigationCube";
 
 export class Stage extends EventDispatcher {
   constructor(container, config = {}) {
@@ -55,9 +55,12 @@ export class Stage extends EventDispatcher {
 
     // if there's a navigation cube in the settings, add it
     setTimeout(() => {
-      this.navScene = this.config.navigationCube ? initNavCube(this.config, this.camera) : null;
+        this.initializeNavigationCube()
     }, 100)
+  }
 
+  initializeNavigationCube() {
+    this.navScene = this.config.navigationCube ? initNavCube(this.config, this.camera) : null;
   }
 
   add(item) {
@@ -125,6 +128,10 @@ export class Stage extends EventDispatcher {
     if (this.controlsManager) {
       this.controlsManager.setCamera(this.camera);
       this.controlsManager.initDragControls(this.boxes, this.renderer.domElement);
+    }
+
+    if (this.navScene) {
+      resetNavCameraType(cameraType)
     }
   }
 
@@ -215,6 +222,26 @@ export class Stage extends EventDispatcher {
       this.scene.remove(this.models[index]);
       this.models.splice(index, 1);
     }
+  }
+
+  setBoxModelScale(model, scale) {
+    // get original position on the floor
+    const sizeBox = new THREE.Box3().setFromObject(model, true);
+    const originalY = sizeBox.min.y
+
+    // console.log(model, model.scale, scale)
+    model.scale.set(scale, scale, scale);
+
+    // set the model back on the floor
+    sizeBox.setFromObject(model, true);
+    model.position.y -= (sizeBox.min.y - originalY) * scale
+
+    // scale the attached model
+    if (model.attachedModel) {
+      model.attachedModel.scale.set(scale, scale, scale);
+      // model.attachedModel.position.y -= (sizeBox.min.y - originalY) * scale
+    }
+
   }
 
   addMountingPoint(position = new THREE.Vector3(0, 10, 0), rotation = new THREE.Euler(0, 0, 0)) {
@@ -405,6 +432,7 @@ export class Stage extends EventDispatcher {
     // if there's a nav scene, render it
     if (this.navScene) {
       updateNavCubePosition()
+      updateNavCubeRotation()
       this.renderer.autoClear = false; // Prevent clearing the main scene
       this.renderer.clearDepth(); // Clear depth buffer for the overlay scene
       this.renderer.render(this.navScene.scene, this.navScene.camera);

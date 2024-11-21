@@ -1,5 +1,5 @@
-let navScene, navCamera, navCube, mainCamera;
-const navCubeSize = 50; // Cube size in pixels
+let navScene, navCamera, navCube, mainCamera, navCameraType = 'orthographic';
+const navCubeSize = 70; // Cube size in pixels
 import * as THREE from 'three';
 const mouse = new THREE.Vector2();
 let isDragging = false;
@@ -8,9 +8,42 @@ let mouseDownStartPoint = { x: 0, y: 0 };
 let lastMousePosition = { x: 0, y: 0 };
 const raycaster = new THREE.Raycaster();
 
+export function resetNavCameraType(type = 'orthographic') {
+    console.log("Resetting nav camera type to:", type);
+    navCameraType = type;
+
+    if (type === 'orthographic') {
+        navCamera = new THREE.OrthographicCamera(
+            -window.innerWidth / 2,
+            window.innerWidth / 2,
+            window.innerHeight / 2,
+            -window.innerHeight / 2,
+            0.1,
+            1000
+        );
+        navCamera.position.z = 150;
+    } else if (type === 'perspective') {
+        navCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        navCamera.position.set(0, 0, 330); // Centered and far enough to see the cube
+    } else {
+        console.error('Unknown camera type:', type);
+    }
+
+    navCamera.lookAt(0, 0, 0);
+
+    // Update matrices
+    navCamera.updateProjectionMatrix();
+    navCamera.updateMatrixWorld();
+
+    // Ensure cube position and rotation are updated
+    updateNavCubePosition();
+    updateNavCubeRotation();
+}
 
 
-function createFaceMaterial(color, text) {
+
+
+function createFaceMaterial(color, text, textColor = 'black') {
     const size = 256; // Texture resolution
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -21,12 +54,11 @@ function createFaceMaterial(color, text) {
     context.fillStyle = color;
     context.fillRect(0, 0, size, size);
 
-    // Draw text
-    context.fillStyle = 'white'; // Text color
+    context.fillStyle = textColor; // Text color
     context.font = 'bold 48px Arial'; // Font size and style
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillText(text, size / 2, size / 2); // Center the text
+    context.fillText(text.toUpperCase(), size / 2, size / 2); // Center the text
 
     // Return a material with the canvas texture
     const texture = new THREE.CanvasTexture(canvas);
@@ -37,7 +69,6 @@ export function initNavCube(config, mainCameraRef) {
     if (!config.navigationCube) return;
 
     mainCamera = mainCameraRef;
-
     navScene = new THREE.Scene();
     navCamera = new THREE.OrthographicCamera(
         -window.innerWidth / 2,
@@ -47,15 +78,15 @@ export function initNavCube(config, mainCameraRef) {
         0.1,
         1000
     );
-    navCamera.position.z = 50;
-    const navCubeGeometry = new THREE.BoxGeometry(50, 50, 50);
+    navCamera.position.z = 150;
+    const navCubeGeometry = new THREE.BoxGeometry(navCubeSize, navCubeSize, navCubeSize);
     const navCubeMaterials = [
-        createFaceMaterial('red', 'Right'),  // +X
-        createFaceMaterial('green', 'Left'), // -X
-        createFaceMaterial('blue', 'Top'),   // +Y
-        createFaceMaterial('#444400', 'Bottom'), // -Y
-        createFaceMaterial('#008888', 'Front'), // +Z
-        createFaceMaterial('magenta', 'Back') // -Z
+        createFaceMaterial('#e14141', 'Right'),  // +X
+        createFaceMaterial('#74b1ed', 'Left'), // -X
+        createFaceMaterial('#43ec5f', 'Top'),   // +Y
+        createFaceMaterial('#702f20', 'Bottom','white'), // -Y
+        createFaceMaterial('#e8cb95', 'Front'), // +Z
+        createFaceMaterial('#33216a', 'Back', 'white') // -Z
     ];
 
     navCube = new THREE.Mesh(navCubeGeometry, navCubeMaterials);
@@ -76,15 +107,15 @@ export function initNavCube(config, mainCameraRef) {
 // Position the Cube in the Top-Left Corner
 export function updateNavCubePosition() {
     if (!navCube) {
-        console.error('Error: navCube is not defined!');
+        // console.error('Error: navCube is not defined!');
         return;
     }
     if (!navCamera) {
-        console.error('Error: navCamera is not defined!');
+        // console.error('Error: navCamera is not defined!');
         return;
     }
 
-    const offsetTop = 150, offsetLeft = 50; // Padding from the edges
+    const offsetTop = 80, offsetLeft = 50; // Padding from the edges
     const cubeWidth = navCube.geometry.parameters.width * navCube.scale.x;
     const cubeHeight = navCube.geometry.parameters.height * navCube.scale.y;
 
@@ -94,6 +125,22 @@ export function updateNavCubePosition() {
         navCamera.top - cubeHeight / 2 - offsetTop,
         0
     );
+}
+
+export function updateNavCubeRotation() {
+    if (isDragging) return
+    if (!navCube) {
+        // console.error('Error: navCube is not defined!');
+        return;
+    }
+    if (!mainCamera) {
+        // console.error('Error: mainCamera is not defined!');
+        return;
+    }
+
+    // Sync the navCube with the main camera
+    const rotation = new THREE.Euler(-mainCamera.rotation.x, -mainCamera.rotation.y, 0, 'XYZ'); // Negate only Y for cube
+    navCube.rotation.set(rotation.x, rotation.y, rotation.z);
 }
 
 function onMouseDown(event) {
@@ -114,14 +161,30 @@ function onMouseDown(event) {
     }
 }
 function onMouseMove(event) {
-    if (!isDragging) return;
+    if (!isDragging) {
+        // change cursor if hovering over navCube
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, navCamera);
+        const intersects = raycaster.intersectObject(navCube, true);
+        if (intersects.length > 0) {
+            document.querySelector('canvas').style.cursor = 'move';
+        }
+        else {
+            document.querySelector('canvas').style.cursor = 'default';
+        }
+        return;
+    }
+
+    const power = 0.04;
 
     const deltaX = event.clientX - lastMousePosition.x; // Horizontal drag
     const deltaY = event.clientY - lastMousePosition.y; // Vertical drag
 
     // Rotate the navCube
-    navCube.rotation.y -= deltaX * 0.01; // Reverse horizontal drag -> Y-axis rotation
-    navCube.rotation.x -= deltaY * 0.01; // Reverse vertical drag -> X-axis rotation
+    navCube.rotation.y -= deltaX * power; // Reverse horizontal drag -> Y-axis rotation
+    navCube.rotation.x -= deltaY * power; // Reverse vertical drag -> X-axis rotation
 
     // Sync the main camera with the navCube
     const rotation = new THREE.Euler(navCube.rotation.x, -navCube.rotation.y, 0, 'XYZ'); // Negate only Y for camera
@@ -135,8 +198,6 @@ function onMouseMove(event) {
     mainCamera.updateProjectionMatrix();
     mainCamera.updateMatrixWorld();
 }
-
-
 
 function onMouseUp() {
     isDragging = false;
@@ -198,6 +259,5 @@ function onMouseUp() {
             mainCamera.lookAt(0, 0, 0);
         }
     }
-
 }
 

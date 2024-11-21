@@ -6,3 +6,4 @@ export { BoundingBox } from './lib/objects/BoundingBox.js';
 export {highlightObject, unhighlightObject} from './lib/utils/Highlighting.js';
 export {SelectedItemHelper} from './lib/utils/SelectedItemHelper.js';
 export {RotatingHelper} from './lib/utils/RotatingHelper.js';
+export {toScreenPosition, PointLightRow, getTopIntersections} from './lib/utils/ModelUtils.js';

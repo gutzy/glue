@@ -41,6 +41,7 @@ export class ControlsManager {
     });
     this.dragControls.addEventListener('drag', event => {
       this.stage.updateDragPosition(event.object, event);
+      this.stage.dispatchEvent({type:'drag-move', object: event.object})
       this.stage.collisionHandler.handleCollisions(event.object);
     });
     this.dragControls.addEventListener('dragend', (event) => {
@@ -103,6 +104,10 @@ export class ControlsManager {
       this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
       this.orbitControls.target.set(0, 0, 0);
       this.camera.lookAt(0, 0, 0);
+    }
+
+    if (this.config.navigationCube) {
+      this.stage.initializeNavigationCube()
     }
   }
 

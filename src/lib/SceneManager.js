@@ -45,11 +45,15 @@ export class SceneManager {
   }
 
   // create a plane in the back of the stage
-  createStageBackdrop() {
-    const geometry = new THREE.PlaneGeometry(10, 5, 80, 3);
+  createStageBackdrop(width, height, gap = 0.25) {
+    if (this.backdrop) {
+        this.removeStageBackdrop();
+    }
+
+    const geometry = new THREE.PlaneGeometry(width, 4, 80, 3);
     const material = new THREE.MeshStandardMaterial({ color: 0x881111, side: THREE.DoubleSide });
     const plane = new THREE.Mesh(geometry, material);
-    plane.position.set(0, 2.5, -4.75);
+    plane.position.set(0, 2, -height/2 + gap);
     this.backdrop = plane;
     this.applyZAxisWaves(plane);
     this.scene.add(plane);
@@ -65,8 +69,14 @@ export class SceneManager {
     gridHelper.position.y = -0.01;
   }
 
-  createFloor() {
-    const geometry = new THREE.BoxGeometry(10, 10, 0.3);
+  createFloor(width = 10, height = 10) {
+    // remove any existing ground
+    const oldGround = this.scene.getObjectByName('ground');
+    if (oldGround) {
+      this.scene.remove(oldGround);
+    }
+
+    const geometry = new THREE.BoxGeometry(width, height, 0.3);
     const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
     const ground = new THREE.Mesh(geometry, material);
     ground.rotation.x = -Math.PI / 2;

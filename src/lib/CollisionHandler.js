@@ -28,6 +28,7 @@ export class CollisionHandler {
     // Function to handle stacking recursively
     const handleStacking = (object, stackableObject, isStacked = false) => {
       const stackableOBB = createOBB(stackableObject);
+      console.log({stackableOBB})
 
       const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
       const stackableOBBMax = stackableOBB.center.clone().add(stackableOBB.halfSize);
