@@ -135,4 +135,12 @@ export class CollisionHandler {
     draggedObject.dispatchEvent({ type: 'change' });
 
   }
+
+  // used when an item below a certain item is removed, this will drop the top item to its original position
+  dropGap(stackedItem, originalItem) {
+    console.log("dropping gap", stackedItem, originalItem)
+    stackedItem.position.y = originalItem.position.y
+    // stackedItem.stackedTo = stackedItem.stackedTo.filter(item => item !== originalItem);
+    stackedItem.dispatchEvent({ type: 'change' });
+  }
 }

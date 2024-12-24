@@ -38,7 +38,7 @@ export function RotatingHelper(parent) {
 
     group.position.x = parent.position.x
     group.position.z = parent.position.z
-    group.position.y = parent.position.y
+    group.position.y = parent.position.y - (parent.geometry.parameters.height / 2)
 
     // group.position.y = 0
     return group

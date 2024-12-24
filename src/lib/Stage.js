@@ -93,7 +93,16 @@ export class Stage extends EventDispatcher {
       if (item.attachedModel) {
         this.remove(item.attachedModel)
       }
-      // item.visible = false;
+
+      // drop stacked items to the floor recursively
+        if (item.stackedItems) {
+            let parent = item
+            item.stackedItems.forEach(stackedItem => {
+                this.collisionHandler.dropGap(stackedItem, parent);
+                parent = stackedItem
+            });
+        }
+
       if (item.parent) item.parent.remove(item)
       if (item.boxId) {
         console.log("BOX ID", item.boxId)
@@ -175,6 +184,7 @@ export class Stage extends EventDispatcher {
 
     const box = this.addBox(model.position.x, model.position.y, model.position.z, sizeBox.max.x - sizeBox.min.x, sizeBox.max.y - sizeBox.min.y, sizeBox.max.z - sizeBox.min.z, 0, stackable)
     box.uniqueId = customData?.uniqueId || model.glueId
+    console.log("UID", customData?.uniqueId)
     box.name = customData?.name || "Model"
     box.description = customData?.description || "A Loaded GLTF Model"
     box.attachedModel = model
