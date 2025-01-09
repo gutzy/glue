@@ -2,8 +2,8 @@ import { Box } from './objects/Box.js';
 import { createOBB, adjustPosition } from './utils/OBBUtils.js';
 
 export class CollisionHandler {
-  constructor(stage) {
-    this.stage = stage;
+  constructor(objectManager) {
+    this.objectManager = objectManager;
     this.originalPositions = new Map();
   }
 
@@ -28,7 +28,6 @@ export class CollisionHandler {
     // Function to handle stacking recursively
     const handleStacking = (object, stackableObject, isStacked = false) => {
       const stackableOBB = createOBB(stackableObject);
-      console.log({stackableOBB})
 
       const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
       const stackableOBBMax = stackableOBB.center.clone().add(stackableOBB.halfSize);
@@ -69,7 +68,7 @@ export class CollisionHandler {
 
     // Function to detach items that are no longer on top of a stackable box
     const detachItems = (object) => {
-      this.stage.children.forEach(stackableBox => {
+      this.objectManager.children.forEach(stackableBox => {
         if (stackableBox.stackable && stackableBox.stackedItems.has(object)) {
           if (!stackableBox.isItemStillStacked(object)) {
             stackableBox.unstack(object);
@@ -86,7 +85,7 @@ export class CollisionHandler {
       collidingObjects.clear();
       stackableObjects.length = 0;
 
-      this.stage.children.forEach(box => {
+      this.objectManager.children.forEach(box => {
         if (box === draggedObject || box.locked || !box.isMesh) return;
 
         const otherOBB = createOBB(box);
@@ -128,7 +127,7 @@ export class CollisionHandler {
     detachItems(draggedObject);
 
     // Set colors based on collision state
-    this.stage.children.forEach(box => {
+    this.objectManager.children.forEach(box => {
       if (box instanceof Box) box.setColorBasedOnCollision(collidingObjects, hasCollision && box === draggedObject);
     });
 

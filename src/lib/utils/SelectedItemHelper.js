@@ -10,12 +10,9 @@ export function SelectedItemHelper(parent, color) {
         originalObject.geometry = bpMesh.object.geometry.clone();
     }
     else {
-        console.log(bpMesh)
         console.log("No geometry found in blueprint mesh, cloning child geometry", bpMesh.children[0].geometry)
         originalObject.geometry = bpMesh.children[0].geometry.clone();
     }
-
-    console.log({originalObject})
 
     // Calculate the bounding box of the original object
     const box = new Box3().setFromObject(originalObject);

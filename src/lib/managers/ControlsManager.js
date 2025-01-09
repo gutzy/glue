@@ -1,6 +1,6 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
+import * as THREE from "three";
 // rotating helper
 
 export class ControlsManager {
@@ -9,23 +9,9 @@ export class ControlsManager {
     this.domElement = domElement;
     this.stage = stage;
     this.config = config;
+    this.dragOffset = new THREE.Vector3();
 
     this.orbitControls = new OrbitControls(this.camera, this.domElement);
-    this.transformControls = new TransformControls(this.camera, this.domElement);
-    this.stage.scene.add(this.transformControls);
-
-    // add listener for clicking
-    this.domElement.addEventListener('click', this.onClick.bind(this), false);
-
-    // Updated event listener for TransformControls
-    this.transformControls.addEventListener('dragging-changed', (event) => {
-      console.log('Dragging changed:', event.value, this.orbitControls.enabled);
-      this.orbitControls.enabled = !event.value;
-    });
-
-    this.domElement.addEventListener('mousemove', this.stage.onMouseMove.bind(this.stage), false);
-    this.domElement.addEventListener('mouseup', this.stage.onMouseUp.bind(this.stage), false);
-
     this.configureOrbitControls()
   }
 
@@ -37,10 +23,10 @@ export class ControlsManager {
       if (event.object.onClickEvent) {
         event.object.onClickEvent(event.object)
       }
-      this.stage.calculateDragOffset(event.object, event);
+      this.calculateDragOffset(event.object, event);
     });
     this.dragControls.addEventListener('drag', event => {
-      this.stage.updateDragPosition(event.object, event);
+      this.updateDragPosition(event.object, event);
       this.stage.dispatchEvent({type:'drag-move', object: event.object})
       this.stage.collisionHandler.handleCollisions(event.object);
     });
@@ -48,33 +34,6 @@ export class ControlsManager {
       this.stage.dispatchEvent({type:'drag-end', object: event.object })
       this.orbitControls.enabled = true;
     });
-  }
-
-  onClick(event) {
-    if (this.transformControls.object) {
-      this.transformControls.detach();
-    }
-
-    if (this.config.rotatingHelper) {
-      // const intersects = this.stage.getIntersects(event);
-      // if (intersects.length > 0) {
-      //   const object = intersects[0].object;
-      //   this.transformControls.attach(object);
-      // }
-      console.log("Rotating helper")
-    }
-  }
-
-  setTransformMode(mode) {
-    this.transformControls.setMode(mode);
-  }
-
-  configureOrbitControls() {
-    this.orbitControls.enabled = true;
-    this.orbitControls.enablePan = this.config.enablePan || false;
-    this.orbitControls.enableZoom = this.config.enableZoom || false;
-    this.orbitControls.enableRotate = (this.config.enableRotate && !this.config.navigationCube) || false;
-    this.orbitControls.update();
   }
 
   setControls(attempt = 0) {
@@ -92,8 +51,39 @@ export class ControlsManager {
     this.dragControls.enabled = this.config.enableDrag || false;
   }
 
-  resetCameraPosition() {
+  updateDragPosition(object, event) {
+    const intersectPoint = this.getIntersectPoint(event);
+    if (intersectPoint) {
+      object.position.copy(intersectPoint).sub(this.dragOffset);
+      object.position.y = object.geometry.parameters.height / 2; // Ensure the object stays on the ground
+    }
+  }
 
+  calculateDragOffset(object, event) {
+    const intersectPoint = this.getIntersectPoint(event);
+    if (intersectPoint) {
+      this.dragOffset.copy(intersectPoint).sub(object.position);
+    }
+  }
+
+  getIntersectPoint(event) {
+    this.stage.raycaster.setFromCamera(this.stage.mouse, this.camera);
+    const intersects = this.stage.raycaster.ray.intersectPlane(this.stage.intersectPlane, new THREE.Vector3());
+    if (intersects) {
+      return intersects;
+    }
+    return null;
+  }
+
+  configureOrbitControls() {
+    this.orbitControls.enabled = true;
+    this.orbitControls.enablePan = this.config.enablePan || false;
+    this.orbitControls.enableZoom = this.config.enableZoom || false;
+    this.orbitControls.enableRotate = (this.config.enableRotate && !this.config.navigationCube) || false;
+    this.orbitControls.update();
+  }
+
+  resetCameraPosition() {
     // if it's perspective, reset camera position to half the pos
     if (this.config.cameraType === 'perspective') {
       this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2);
@@ -111,38 +101,10 @@ export class ControlsManager {
     }
   }
 
-  toggleTransformControlsMode(editingType) {
-    const mode = this.transformControls.mode;
-    if (mode === 'translate') {
-      this.transformControls.setMode('rotate')
-      // limit to Y axis rotation
-      if (editingType === 'mountingPoint') {
-        this.transformControls.showX = true
-        this.transformControls.showY = true
-        this.transformControls.showZ = true
-      }
-      else if (editingType === 'boundingBox') {
-        this.transformControls.showX = false
-        this.transformControls.showY = true
-        this.transformControls.showZ = false
-        this.transformControls.setSpace('local')
-      }
-
-      this.transformControls.setSpace('local')
-    } else if (mode === 'rotate') {
-      this.transformControls.setMode('scale')
-      this.transformControls.showX = this.transformControls.showY = this.transformControls.showZ = true
-    } else {
-      this.transformControls.setMode('translate')
-      this.transformControls.showX = this.transformControls.showY = this.transformControls.show
-    }
-  }
-
   setCamera(camera) {
     this.camera = camera;
     this.orbitControls.object = camera;
     this.orbitControls.update();
-    this.transformControls.camera = camera;
   }
 
   setCameraType(cameraType) {

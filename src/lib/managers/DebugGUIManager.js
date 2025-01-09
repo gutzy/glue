@@ -1,7 +1,7 @@
 import { GUI } from 'dat.gui';
-import Config from './Config';
+import Config from '../Config';
 
-export class GUIManager {
+export class DebugGUIManager {
   constructor(stage) {
     this.stage = stage;
     this.initGUI();
@@ -25,7 +25,7 @@ export class GUIManager {
         rotation: 0,
         stackable: false,
         addBox: () => {
-          this.stage.addBox(objectParams.x, objectParams.y, objectParams.z, objectParams.width, objectParams.height, objectParams.depth, objectParams.rotation, objectParams.stackable);
+          this.stage.objectManager.addBox(objectParams.x, objectParams.y, objectParams.z, objectParams.width, objectParams.height, objectParams.depth, objectParams.rotation, objectParams.stackable);
         }
       };
 

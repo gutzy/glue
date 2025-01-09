@@ -102,6 +102,13 @@ export class Box extends THREE.Mesh {
   rotateStackedItems(amount) {
     this.stackedItems.forEach(item => {
       item.rotation.y += (amount);
+
+      // besides rotation, change item position depending on its relative position to the parent
+        const x = item.position.x - this.position.x;
+        const z = item.position.z - this.position.z;
+        item.position.x = this.position.x + x * Math.cos(amount) + z * Math.sin(amount);
+        item.position.z = this.position.z + z * Math.cos(amount) - x * Math.sin(amount);
+
       item.dispatchEvent({ type: 'change' });
       if (item.stackedItems) {
         item.rotateStackedItems(amount);
