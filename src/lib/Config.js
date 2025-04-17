@@ -2,7 +2,7 @@ export default class Config {
   constructor(config) {
     this.cameraType = 'orthographic';
     this.cameraInitialZoom = 12;
-    this.lookAtY = 1;
+    this.lookAtY = 3;
     this.cameraPosX = 0;
     this.cameraPosY = 100;
     this.cameraPosZ = 100;

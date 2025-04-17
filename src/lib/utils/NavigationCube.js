@@ -8,26 +8,44 @@ let mouseDownStartPoint = { x: 0, y: 0 };
 let lastMousePosition = { x: 0, y: 0 };
 const raycaster = new THREE.Raycaster();
 
-export function resetNavCameraType(type = 'orthographic') {
-    console.log("Resetting nav camera type to:", type);
+let myConfig;
+
+let _width = window.innerWidth, _height = window.innerHeight;
+
+export function resetNavCameraType(type = 'orthographic', width = window.innerWidth, height = window.innerHeight) {
+
+    _width = width
+    _height = height
     navCameraType = type;
+
+    type = 'orthographic'
 
     if (type === 'orthographic') {
         navCamera = new THREE.OrthographicCamera(
-            -window.innerWidth / 2,
-            window.innerWidth / 2,
-            window.innerHeight / 2,
-            -window.innerHeight / 2,
+            -width / 1.5,
+            width / 1.5,
+            height / 1.5,
+            -height / 1.5,
             0.1,
             1000
         );
         navCamera.position.z = 150;
     } else if (type === 'perspective') {
-        navCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        navCamera.position.set(0, 0, 330); // Centered and far enough to see the cube
+        console.log("Wut??")
+        navCamera = new THREE.PerspectiveCamera(
+            75, // Field of view
+            width / height, // Aspect ratio
+            0.1, // Near plane
+            1000 // Far plane
+        );
+        navCamera.position.z = 75*6;
+        navCamera.position.y = -75;
+        navCamera.position.x = 0;
     } else {
         console.error('Unknown camera type:', type);
     }
+    navScene.add(navCamera);
+    navScene.camera = navCamera;
 
     navCamera.lookAt(0, 0, 0);
 
@@ -38,6 +56,8 @@ export function resetNavCameraType(type = 'orthographic') {
     // Ensure cube position and rotation are updated
     updateNavCubePosition();
     updateNavCubeRotation();
+
+    return navCamera
 }
 
 
@@ -65,19 +85,15 @@ function createFaceMaterial(color, text, textColor = 'black') {
     return new THREE.MeshBasicMaterial({ map: texture });
 }
 
-export function initNavCube(config, mainCameraRef) {
+export function initNavCube(config, mainCameraRef, width = window.innerWidth, height = window.innerHeight) {
     if (!config.navigationCube) return;
+
+    myConfig = config;
 
     mainCamera = mainCameraRef;
     navScene = new THREE.Scene();
-    navCamera = new THREE.OrthographicCamera(
-        -window.innerWidth / 2,
-        window.innerWidth / 2,
-        window.innerHeight / 2,
-        -window.innerHeight / 2,
-        0.1,
-        1000
-    );
+    navCameraType === 'orthographic' ? navCamera = resetNavCameraType('orthographic', width, height) : navCamera = resetNavCameraType('perspective', width, height);
+
     navCamera.position.z = 150;
     const navCubeGeometry = new THREE.BoxGeometry(navCubeSize, navCubeSize, navCubeSize);
     const navCubeMaterials = [
@@ -119,12 +135,30 @@ export function updateNavCubePosition() {
     const cubeWidth = navCube.geometry.parameters.width * navCube.scale.x;
     const cubeHeight = navCube.geometry.parameters.height * navCube.scale.y;
 
+    navCameraType = 'orthographic'
     // Position the cube in the top-left corner
-    navCube.position.set(
-        navCamera.left + cubeWidth / 2 + offsetLeft,
-        navCamera.top - cubeHeight / 2 - offsetTop,
-        0
-    );
+    if (navCameraType === 'orthographic') {
+        navCube.position.set(
+            navCamera.left + cubeWidth / 2 + offsetLeft,
+            navCamera.top - cubeHeight / 2 - offsetTop,
+            0
+        );
+    } else if (navCameraType === 'perspective') {
+        // For perspective camera, we need to adjust the position based on the camera's field of view
+        // the cube needs to be in the top left corner of the screen, and the camera needs to be looking at the center of the stage
+        const aspect = navCamera.aspect;
+        const fov = THREE.MathUtils.degToRad(navCamera.fov);
+        const height = 2 * Math.tan(fov / 2) * navCamera.position.z;
+        const width = height * aspect;
+        navCube.position.set(
+            -width / 5 + cubeWidth / 2 + offsetLeft,
+            height / 2 - cubeHeight / 2 - offsetTop,
+            0
+        );
+    } else {
+        console.error('Unknown camera type:', navCameraType);
+    }
+
 }
 
 export function updateNavCubeRotation() {
@@ -139,14 +173,14 @@ export function updateNavCubeRotation() {
     }
 
     // Sync the navCube with the main camera
-    const rotation = new THREE.Euler(-mainCamera.rotation.x, -mainCamera.rotation.y, 0, 'XYZ'); // Negate only Y for cube
-    navCube.rotation.set(rotation.x, rotation.y, rotation.z);
+        const rotation = new THREE.Euler(-mainCamera.rotation.x, -mainCamera.rotation.y, 0, 'XYZ'); // Negate only Y for cube
+        navCube.rotation.set(rotation.x, rotation.y, rotation.z);
 }
 
 function onMouseDown(event) {
     // Check if the click is on the navCube
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = (event.clientX / (_width || window.innerWidth)) * 2 - 1;
+    mouse.y = -(event.clientY / (_height || window.innerHeight)) * 2 + 1;
 
     mouseDownStartPoint.x = event.clientX;
     mouseDownStartPoint.y = event.clientY;
@@ -163,8 +197,8 @@ function onMouseDown(event) {
 function onMouseMove(event) {
     if (!isDragging) {
         // change cursor if hovering over navCube
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        mouse.x = (event.clientX / (_width || window.innerWidth)) * 2 - 1;
+        mouse.y = -(event.clientY / (_height || window.innerHeight)) * 2 + 1;
 
         raycaster.setFromCamera(mouse, navCamera);
         const intersects = raycaster.intersectObject(navCube, true);
@@ -189,7 +223,7 @@ function onMouseMove(event) {
     // Sync the main camera with the navCube
     const rotation = new THREE.Euler(navCube.rotation.x, -navCube.rotation.y, 0, 'XYZ'); // Negate only Y for camera
     mainCamera.position.setFromSphericalCoords(10, Math.PI / 2 - rotation.x, rotation.y);
-    mainCamera.lookAt(0, 0, 0);
+    mainCamera.lookAt(0, myConfig.lookAtY || 0, 0);
 
     lastMousePosition.x = event.clientX;
     lastMousePosition.y = event.clientY;
@@ -222,17 +256,17 @@ function onMouseUp() {
             // Map faceIndex to camera positions
             switch (faceIndex) {
                 case 0: // Right (+X)
-                    mainCamera.position.set(10, 0, 0);
+                    mainCamera.position.set(10,  myConfig.lookAtY || 0, 0);
                     navCube.rotation.x = 0;
                     navCube.rotation.y = -Math.PI / 2;
                     break;
                 case 1: // Left (-X)
-                    mainCamera.position.set(-10, 0, 0);
+                    mainCamera.position.set(-10,  myConfig.lookAtY || 0, 0);
                     navCube.rotation.x = 0;
                     navCube.rotation.y = Math.PI / 2;
                     break;
                 case 2: // Top (+Y)
-                    mainCamera.position.set(0, 10, 0);
+                    mainCamera.position.set(0, 100, 0);
                     navCube.rotation.x = Math.PI / 2;
                     navCube.rotation.y = 0;
                     break;
@@ -242,12 +276,12 @@ function onMouseUp() {
                     navCube.rotation.y = 0;
                     break;
                 case 4: // Front (+Z)
-                    mainCamera.position.set(0, 0, 10);
+                    mainCamera.position.set(0,  myConfig.lookAtY || 0, 10);
                     navCube.rotation.x = 0;
                     navCube.rotation.y = 0;
                     break;
                 case 5: // Back (-Z)
-                    mainCamera.position.set(0, 0, -10);
+                    mainCamera.position.set(0, myConfig.lookAtY || 0, -10);
                     navCube.rotation.x = 0;
                     navCube.rotation.y = Math.PI;
                     break;
@@ -256,7 +290,7 @@ function onMouseUp() {
             }
 
             // Make the camera look at the stage center
-            mainCamera.lookAt(0, 0, 0);
+            mainCamera.lookAt(0,  myConfig.lookAtY || 0, 0);
         }
     }
 }

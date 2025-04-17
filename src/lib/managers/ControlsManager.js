@@ -17,24 +17,38 @@ export class ControlsManager {
 
   initDragControls(boxes, domElement) {
     this.dragControls = new DragControls(boxes, this.camera, domElement);
+
+    let isFirstDragFrame = false;
+
     this.dragControls.addEventListener('dragstart', event => {
       this.orbitControls.enabled = false;
-      this.stage.dispatchEvent({type:'drag-start', object: event.object})
+      this.stage.dispatchEvent({ type: 'drag-start', object: event.object });
+
       if (event.object.onClickEvent) {
-        event.object.onClickEvent(event.object)
+        event.object.onClickEvent(event.object);
       }
+
       this.calculateDragOffset(event.object, event);
+      isFirstDragFrame = true; // flag to skip the first drag frame
     });
+
     this.dragControls.addEventListener('drag', event => {
+      if (isFirstDragFrame) {
+        isFirstDragFrame = false;
+        return; // skip the first frame to avoid the "jump"
+      }
+
       this.updateDragPosition(event.object, event);
-      this.stage.dispatchEvent({type:'drag-move', object: event.object})
+      this.stage.dispatchEvent({ type: 'drag-move', object: event.object });
       this.stage.collisionHandler.handleCollisions(event.object);
     });
-    this.dragControls.addEventListener('dragend', (event) => {
-      this.stage.dispatchEvent({type:'drag-end', object: event.object })
+
+    this.dragControls.addEventListener('dragend', event => {
+      this.stage.dispatchEvent({ type: 'drag-end', object: event.object });
       this.orbitControls.enabled = true;
     });
   }
+
 
   setControls(attempt = 0) {
     if (!this.orbitControls || !this.dragControls) {
@@ -48,15 +62,18 @@ export class ControlsManager {
     }
     this.configureOrbitControls()
 
+
     this.dragControls.enabled = this.config.enableDrag || false;
   }
 
   updateDragPosition(object, event) {
-    const intersectPoint = this.getIntersectPoint(event);
+    let intersectPoint = null;
+      intersectPoint = this.getIntersectPoint(event);
     if (intersectPoint) {
       object.position.copy(intersectPoint).sub(this.dragOffset);
       object.position.y = object.geometry.parameters.height / 2; // Ensure the object stays on the ground
     }
+    // if frame offset exceeds what we want, set it to 0
   }
 
   calculateDragOffset(object, event) {
@@ -68,6 +85,7 @@ export class ControlsManager {
 
   getIntersectPoint(event) {
     this.stage.raycaster.setFromCamera(this.stage.mouse, this.camera);
+
     const intersects = this.stage.raycaster.ray.intersectPlane(this.stage.intersectPlane, new THREE.Vector3());
     if (intersects) {
       return intersects;
@@ -81,6 +99,10 @@ export class ControlsManager {
     this.orbitControls.enableZoom = this.config.enableZoom || false;
     this.orbitControls.enableRotate = (this.config.enableRotate && !this.config.navigationCube) || false;
     this.orbitControls.update();
+
+    this.orbitControls.addEventListener('change', () => {
+        this.orbitControls.target.set(0, this.config.lookAtY, 0);
+    })
   }
 
   resetCameraPosition() {
@@ -93,7 +115,7 @@ export class ControlsManager {
     else {
       this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
       this.orbitControls.target.set(0, 0, 0);
-      this.camera.lookAt(0, 0, 0);
+      this.camera.lookAt(0, this.config.lookAtY, 0);
     }
 
     if (this.config.navigationCube) {
@@ -140,14 +162,14 @@ export class ControlsManager {
         // move the camera to position 0,0,0
         this.camera.position.x = -(100+this.config.cameraPosX) + ((100+this.config.cameraPosX) * progress)
         this.camera.position.y = (100+this.config.cameraPosY) - (100 * progress)
-        this.camera.lookAt(0,0,0)
+        this.camera.lookAt(0,this.config.lookAtY,0)
         this.camera.updateProjectionMatrix()
         if (progress < 1) {
           requestAnimationFrame(animate)
         }
         else {
           this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ)
-          this.camera.lookAt(0,0,0)
+          this.camera.lookAt(0,this.config.lookAtY,0)
           this.camera.updateProjectionMatrix()
         }
       }

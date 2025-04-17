@@ -39,6 +39,7 @@ export class Stage extends EventDispatcher {
     // if there's a navigation cube in the settings, add it
     setTimeout(() => {
         this.initializeNavigationCube()
+        this.resetStageHeight(this.container.clientHeight)
     }, 100)
   }
 
@@ -85,7 +86,27 @@ export class Stage extends EventDispatcher {
     }
 
     if (this.navScene) {
-      resetNavCameraType(cameraType)
+      this.navScene.camera = resetNavCameraType(cameraType, this.container.clientWidth, this.container.clientHeight)
+    }
+  }
+
+  resetStageHeight(height) {
+    let width = this.container.clientWidth
+    const aspect = width / height;
+    this.renderer.setSize(this.container.clientWidth, height)
+    if (this.camera.isPerspectiveCamera) {
+      this.camera.aspect = aspect;
+    } else if (this.camera.isOrthographicCamera) {
+      const viewSize = this.camera.top - this.camera.bottom;
+      this.camera.left = -viewSize * aspect / 2;
+      this.camera.right = viewSize * aspect / 2;
+      this.camera.top = viewSize / 2;
+      this.camera.bottom = -viewSize / 2;
+    }
+    this.camera.updateProjectionMatrix();
+
+    if (this.navScene) {
+      this.navScene.camera = resetNavCameraType(this.camera.isPerspectiveCamera ? 'perspective' : 'orthographic', width, height)
     }
   }
 
@@ -118,10 +139,28 @@ export class Stage extends EventDispatcher {
   }
 
   onWindowResize() {
-    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const aspect = width / height;
+
+    if (this.camera.isPerspectiveCamera) {
+      this.camera.aspect = aspect;
+    } else if (this.camera.isOrthographicCamera) {
+      const viewSize = this.camera.top - this.camera.bottom;
+      this.camera.left = -viewSize * aspect / 2;
+      this.camera.right = viewSize * aspect / 2;
+      this.camera.top = viewSize / 2;
+      this.camera.bottom = -viewSize / 2;
+    }
+
+    if (this.navScene) {
+      this.navScene.camera = resetNavCameraType(this.camera.isPerspectiveCamera ? 'perspective' : 'orthographic', width, height)
+    }
+
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setSize(width, height);
   }
+
 
   onMouseDown(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
