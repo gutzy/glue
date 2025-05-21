@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class Box extends THREE.Mesh {
-  constructor(x, y, z, width, height, depth, rotation = 0, stackable = false) {
+  constructor(x, y, z, width, height, depth, rotation = 0, stackable = false, snapsToSimilar = false) {
     const geometry = new THREE.BoxGeometry(width, height, depth);
     const material = new THREE.MeshBasicMaterial({ color: stackable ? 0x0000ff : 0x00ff00, wireframe: true });
     super(geometry, material);
@@ -10,6 +10,7 @@ export class Box extends THREE.Mesh {
     this.position.y += height / 2;  // Ensure it is on the floor
     this.rotation.y = THREE.MathUtils.degToRad(rotation);
     this.stackable = stackable;
+    this.snapsToSimilar = snapsToSimilar;
     this.stackedTo = null;
     this.stackedItems = new Set();
     this.type = 'box'

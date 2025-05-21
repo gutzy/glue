@@ -75,8 +75,8 @@ export class ObjectManager {
         }
     }
 
-    addBox(x, y, z, width, height, depth, rotation = 0, stackable = false) {
-        const box = new Box(x, y, z, width, height, depth, rotation, stackable);
+    addBox(x, y, z, width, height, depth, rotation = 0, stackable = false, snapsToSimilar = false) {
+        const box = new Box(x, y, z, width, height, depth, rotation, stackable, snapsToSimilar);
         this.scene.add(box);
         this.children.push(box);
         this.boxes.push(box);
@@ -98,13 +98,13 @@ export class ObjectManager {
         }
     }
 
-    async loadGLTFModel(url, { onClick=null }, { stackable = false, customData = null }, onPercent = () => {}) {
+    async loadGLTFModel(url, { onClick=null }, { stackable = false, snapsToSimilar = false, customData = null }, onPercent = () => {}) {
         var model = await GLTFModel(url, {}, onPercent)
         model.glueId = ++this.glueId
         this.scene.add(model)
         const sizeBox = new THREE.Box3().setFromObject(model, true);
 
-        const box = this.addBox(model.position.x, model.position.y, model.position.z, sizeBox.max.x - sizeBox.min.x, sizeBox.max.y - sizeBox.min.y, sizeBox.max.z - sizeBox.min.z, 0, stackable)
+        const box = this.addBox(model.position.x, model.position.y, model.position.z, sizeBox.max.x - sizeBox.min.x, sizeBox.max.y - sizeBox.min.y, sizeBox.max.z - sizeBox.min.z, 0, stackable, snapsToSimilar)
         box.uniqueId = customData?.uniqueId || model.glueId
         box.name = customData?.name || "Model"
         box.description = customData?.description || "A Loaded GLTF Model"

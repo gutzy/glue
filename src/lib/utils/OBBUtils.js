@@ -63,28 +63,3 @@ export function adjustPosition(object, draggedOBB, otherOBB, step) {
 
   draggedOBB.set(object.position.clone(), draggedOBB.halfSize, new THREE.Matrix3().setFromMatrix4(object.matrixWorld));
 }
-
-export function handleStacking(object, stackableObject, draggedOBB, stackedItems, originalPositions) {
-  const stackableOBB = createOBB(stackableObject);
-
-  const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
-  const stackableOBBMax = stackableOBB.center.clone().add(stackableOBB.halfSize);
-
-  // Ensure the object is placed directly on top of the stackable box
-  if (draggedOBBMin.y < stackableOBBMax.y) {
-    object.position.y = stackableOBBMax.y + draggedOBB.halfSize.y;
-
-    // Track stacked items and their relative positions
-    if (!stackedItems.has(stackableObject)) {
-      stackedItems.set(stackableObject, new Set());
-    }
-    stackedItems.get(stackableObject).add(object);
-    if (!originalPositions.has(object)) {
-      originalPositions.set(object, {
-        x: object.position.x - stackableObject.position.x,
-        y: object.position.y - stackableObject.position.y,
-        z: object.position.z - stackableObject.position.z
-      });
-    }
-  }
-}

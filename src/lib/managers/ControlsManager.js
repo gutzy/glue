@@ -1,6 +1,8 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
 import * as THREE from "three";
+
+let dragged = null;
 // rotating helper
 
 export class ControlsManager {
@@ -21,9 +23,15 @@ export class ControlsManager {
     let isFirstDragFrame = false;
 
     this.dragControls.addEventListener('dragstart', event => {
+      if (dragged) {
+        console.log("An object is already being dragged")
+        return
+      }
+      else {
+        dragged = event.object;
+      }
       this.orbitControls.enabled = false;
       this.stage.dispatchEvent({ type: 'drag-start', object: event.object });
-
       if (event.object.onClickEvent) {
         event.object.onClickEvent(event.object);
       }
@@ -33,6 +41,10 @@ export class ControlsManager {
     });
 
     this.dragControls.addEventListener('drag', event => {
+      if (dragged !== event.object) {
+        console.log("dragging a different object!!")
+        return
+      }
       if (isFirstDragFrame) {
         isFirstDragFrame = false;
         return; // skip the first frame to avoid the "jump"
@@ -44,6 +56,7 @@ export class ControlsManager {
     });
 
     this.dragControls.addEventListener('dragend', event => {
+      dragged = null
       this.stage.dispatchEvent({ type: 'drag-end', object: event.object });
       this.orbitControls.enabled = true;
     });
@@ -101,7 +114,8 @@ export class ControlsManager {
     this.orbitControls.update();
 
     this.orbitControls.addEventListener('change', () => {
-        this.orbitControls.target.set(0, this.config.lookAtY, 0);
+        // this.orbitControls.target.set(0, this.config.lookAtY, 0);
+
     })
   }
 
@@ -117,6 +131,8 @@ export class ControlsManager {
       this.orbitControls.target.set(0, 0, 0);
       this.camera.lookAt(0, this.config.lookAtY, 0);
     }
+
+    this.orbitControls.target.set(0, this.config.lookAtY, 0)
 
     if (this.config.navigationCube) {
       this.stage.initializeNavigationCube()

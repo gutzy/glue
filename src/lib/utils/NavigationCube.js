@@ -22,10 +22,10 @@ export function resetNavCameraType(type = 'orthographic', width = window.innerWi
 
     if (type === 'orthographic') {
         navCamera = new THREE.OrthographicCamera(
-            -width / 1.5,
-            width / 1.5,
-            height / 1.5,
-            -height / 1.5,
+            -width / 2,
+            width / 2,
+            height / 2,
+            -height / 2,
             0.1,
             1000
         );
@@ -59,9 +59,6 @@ export function resetNavCameraType(type = 'orthographic', width = window.innerWi
 
     return navCamera
 }
-
-
-
 
 function createFaceMaterial(color, text, textColor = 'black') {
     const size = 256; // Texture resolution
@@ -109,13 +106,14 @@ export function initNavCube(config, mainCameraRef, width = window.innerWidth, he
     navScene.add(navCube);
 
 // Add event listeners for dragging
-    window.removeEventListener('mousedown', onMouseDown);
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
+    let el = document.querySelector('canvas')
+    el.removeEventListener('mousedown', onMouseDown);
+    el.removeEventListener('mousemove', onMouseMove);
+    el.removeEventListener('mouseup', onMouseUp);
 
-    window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('mousemove', onMouseMove);
+    el.addEventListener('mouseup', onMouseUp);
 
     return {scene: navScene, camera: navCamera};
 }
@@ -178,12 +176,19 @@ export function updateNavCubeRotation() {
 }
 
 function onMouseDown(event) {
+    let target = event.target;
+    // get target size
+    const rect = target.getBoundingClientRect();
+    _width = rect.width;
+    _height = rect.height;
+    // console.log("Target size: ", rect.width, rect.height, "Window size: ", window.innerWidth, window.innerHeight)
+    // console.log("Target position: ", rect.left, rect.top, "Window position: ", window.innerWidth, window.innerHeight)
     // Check if the click is on the navCube
-    mouse.x = (event.clientX / (_width || window.innerWidth)) * 2 - 1;
-    mouse.y = -(event.clientY / (_height || window.innerHeight)) * 2 + 1;
+    mouse.x = ((event.clientX-rect.left) / (rect.width || window.innerWidth)) * 2 - 1;
+    mouse.y = -((event.clientY-rect.top) / (rect.height || window.innerHeight)) * 2 + 1;
 
-    mouseDownStartPoint.x = event.clientX;
-    mouseDownStartPoint.y = event.clientY;
+    mouseDownStartPoint.x = (event.clientX - rect.left);
+    mouseDownStartPoint.y = event.clientY - rect.top;
 
     raycaster.setFromCamera(mouse, navCamera);
     const intersects = raycaster.intersectObject(navCube, true);
@@ -195,11 +200,13 @@ function onMouseDown(event) {
     }
 }
 function onMouseMove(event) {
+    let target = event.target;
+    const rect = target.getBoundingClientRect();
+
     if (!isDragging) {
         // change cursor if hovering over navCube
-        mouse.x = (event.clientX / (_width || window.innerWidth)) * 2 - 1;
-        mouse.y = -(event.clientY / (_height || window.innerHeight)) * 2 + 1;
-
+        mouse.x = ((event.clientX - rect.left) / (_width || window.innerWidth)) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / (_height || window.innerHeight)) * 2 + 1;
         raycaster.setFromCamera(mouse, navCamera);
         const intersects = raycaster.intersectObject(navCube, true);
         if (intersects.length > 0) {
@@ -213,8 +220,8 @@ function onMouseMove(event) {
 
     const power = 0.04;
 
-    const deltaX = event.clientX - lastMousePosition.x; // Horizontal drag
-    const deltaY = event.clientY - lastMousePosition.y; // Vertical drag
+    const deltaX = (event.clientX - rect.left) - lastMousePosition.x; // Horizontal drag
+    const deltaY = (event.clientY - rect.top) - lastMousePosition.y; // Vertical drag
 
     // Rotate the navCube
     navCube.rotation.y -= deltaX * power; // Reverse horizontal drag -> Y-axis rotation
@@ -225,8 +232,8 @@ function onMouseMove(event) {
     mainCamera.position.setFromSphericalCoords(10, Math.PI / 2 - rotation.x, rotation.y);
     mainCamera.lookAt(0, myConfig.lookAtY || 0, 0);
 
-    lastMousePosition.x = event.clientX;
-    lastMousePosition.y = event.clientY;
+    lastMousePosition.x = event.clientX - rect.left;
+    lastMousePosition.y = event.clientY - rect.top;
 
     // Ensure camera updates
     mainCamera.updateProjectionMatrix();

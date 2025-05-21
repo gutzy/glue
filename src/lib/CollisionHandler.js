@@ -1,5 +1,6 @@
 import { Box } from './objects/Box.js';
 import { createOBB, adjustPosition } from './utils/OBBUtils.js';
+import {Box2, Vector2, Vector3} from "three";
 
 export class CollisionHandler {
   constructor(objectManager) {
@@ -91,7 +92,41 @@ export class CollisionHandler {
         const otherOBB = createOBB(box);
 
         if (draggedOBB.intersectsOBB(otherOBB)) {
-          if (box.stackable) {
+
+          if (box.snapsToSimilar && draggedObject.snapsToSimilar && box.meta.id === draggedObject.meta.id && box.rotation.equals(draggedObject.rotation)) {
+            console.log("SNAPPPP", {box, draggedObject})
+            let closestEdge = null;
+            const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
+            const otherOBBMin = otherOBB.center.clone().sub(otherOBB.halfSize);
+            const draggedOBBSize = draggedOBB.halfSize.clone();
+            const otherOBBSize = otherOBB.halfSize.clone();
+            closestEdge = draggedOBBMin.clone().add(draggedOBBSize).sub(otherOBBMin.clone().add(otherOBBSize));
+            let closerToVerticalCenter = Math.abs(closestEdge.x) < Math.abs(closestEdge.z);
+            // snap left edge to right edge
+            if (!closerToVerticalCenter && draggedObject.position.x < box.position.x) {
+              draggedObject.position.x = box.position.x - (draggedOBB.halfSize.x + otherOBB.halfSize.x);
+              draggedObject.position.z = box.position.z
+            }
+            // snap right edge to left edge
+            else if (!closerToVerticalCenter && draggedObject.position.x > box.position.x) {
+              draggedObject.position.x = box.position.x + (draggedOBB.halfSize.x + otherOBB.halfSize.x);
+                draggedObject.position.z = box.position.z
+            }
+            // snap front edge to back edge
+            if (draggedObject.position.z < box.position.z) {
+              draggedObject.position.z = box.position.z - (draggedOBB.halfSize.z + otherOBB.halfSize.z);
+                draggedObject.position.x = box.position.x
+            }
+            // snap back edge to front edge
+            else if (draggedObject.position.z > box.position.z) {
+              draggedObject.position.z = box.position.z + (draggedOBB.halfSize.z + otherOBB.halfSize.z);
+                draggedObject.position.x = box.position.x
+            }
+
+
+          }
+
+          else if (box.stackable) {
             stackableObjects.push(box);
           } else {
             collidingObjects.add(box);

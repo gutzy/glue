@@ -163,8 +163,9 @@ export class Stage extends EventDispatcher {
 
 
   onMouseDown(event) {
-    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const rect = event.target.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
     let intersects = this.raycaster.intersectObjects(this.scene.children, true);
     let parent
@@ -206,8 +207,9 @@ export class Stage extends EventDispatcher {
   }
 
   onMouseMove(event) {
-    this.mouse.x = (event.clientX / this.container.clientWidth) * 2 - 1;
-    this.mouse.y = -(event.clientY / this.container.clientHeight) * 2 + 1;
+    const rect = event.target.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.updateRaycaster(); // Update raycaster on mouse move
 
     // for dispatching the stage coordinates, get them:

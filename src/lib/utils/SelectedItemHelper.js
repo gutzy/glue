@@ -1,7 +1,6 @@
 import { Box3, BoxHelper, Color, Object3D } from 'three'
 
 export function SelectedItemHelper(parent, color) {
-    // Create a new Object3D to hold the original bounding box
     const originalObject = new Object3D(), bpMesh = (parent);
     if (bpMesh.geometry) {
         originalObject.geometry = bpMesh.geometry.clone();
