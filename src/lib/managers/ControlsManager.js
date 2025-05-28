@@ -66,7 +66,8 @@ export class ControlsManager {
   setControls(attempt = 0) {
     if (!this.orbitControls || !this.dragControls) {
       if (attempt >= 10) {
-        console.error("Controls not ready after 10 attempts")
+        console.error("Controls not ready after 10 attempts", this.orbitControls, this.dragControls);
+        console.trace()
       }
       setTimeout(() => {
         this.setControls(++attempt);
@@ -155,7 +156,9 @@ export class ControlsManager {
 
   updateConfig(config) {
     this.config = { ...this.config, ...config };
-    this.setControls();
+    if (this.config.dragItems) {
+      this.setControls();
+    }
     if (config.cameraType) this.setCameraType(config.cameraType)
   }
 

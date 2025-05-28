@@ -12,6 +12,7 @@ export default class Config {
     this.enableZoom = false;
     this.enableRotate = false;
     this.enableDrag = false;
+    this.dragItems = true;
     this.navigationCube = false;
     this.rotatingHelper = false;
     this.boundingBoxColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xff8000]
@@ -36,6 +37,7 @@ export default class Config {
       if (config.enableZoom !== undefined) this.enableZoom = config.enableZoom;
       if (config.enableRotate !== undefined) this.enableRotate = (config.enableRotate && !config.navigationCube);
       if (config.enableDrag !== undefined) this.enableDrag = config.enableDrag;
+      if (config.dragItems !== undefined) this.dragItems = config.dragItems;
       if (config.boundingBoxColors !== undefined) this.boundingBoxColors = config.boundingBoxColors;
       if (config.backgroundColor !== undefined) this.backgroundColor = config.backgroundColor;
     }

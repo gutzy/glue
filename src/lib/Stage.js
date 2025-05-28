@@ -19,9 +19,11 @@ export class Stage extends EventDispatcher {
     this.raycaster = new THREE.Raycaster()
     this.intersectPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0))
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true })
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight)
     container.appendChild(this.renderer.domElement)
+
+    console.log("Config:", this.config)
 
     this.setCamera(config.cameraType || 'perspective')
 
@@ -34,7 +36,9 @@ export class Stage extends EventDispatcher {
     this.animate()
 
     setTimeout(() => this.controlsManager.animateCameraZoom())
-    this.controlsManager.initDragControls(this.objectManager.boxes, this.renderer.domElement)
+    if (this.config.dragItems) {
+      this.controlsManager.initDragControls(this.objectManager.boxes, this.renderer.domElement)
+    }
 
     // if there's a navigation cube in the settings, add it
     setTimeout(() => {
@@ -82,7 +86,9 @@ export class Stage extends EventDispatcher {
 
     if (this.controlsManager) {
       this.controlsManager.setCamera(this.camera);
-      this.controlsManager.initDragControls(this.objectManager.boxes, this.renderer.domElement);
+      if (this.config.dragItems) {
+        this.controlsManager.initDragControls(this.objectManager.boxes, this.renderer.domElement);
+      }
     }
 
     if (this.navScene) {
@@ -226,3 +232,5 @@ export class Stage extends EventDispatcher {
 
 
 }
+
+
