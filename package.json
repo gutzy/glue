@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "src/index.js",
   "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
     "dat.gui": "^0.7.9",
     "three": "^0.164.1"
   },

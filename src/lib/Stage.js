@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import Tween from './utils/Tween.js';
 import { SceneManager } from './managers/SceneManager.js';
 import { ControlsManager } from './managers/ControlsManager.js';
 import {ObjectManager} from "./managers/ObjectManager";
@@ -23,8 +24,6 @@ export class Stage extends EventDispatcher {
     this.renderer.setSize(container.clientWidth, container.clientHeight)
     container.appendChild(this.renderer.domElement)
 
-    console.log("Config:", this.config)
-
     this.setCamera(config.cameraType || 'perspective')
 
     this.sceneManager = new SceneManager(this.scene, this.camera, this.container, this.config)
@@ -35,7 +34,12 @@ export class Stage extends EventDispatcher {
     this.bindListeners()
     this.animate()
 
-    setTimeout(() => this.controlsManager.animateCameraZoom())
+    if (this.config.animateCameraZoom) {
+      setTimeout(() => this.controlsManager.animateCameraZoom())
+    }
+    else {
+      this.controlsManager.resetCameraPosition()
+    }
     if (this.config.dragItems) {
       this.controlsManager.initDragControls(this.objectManager.boxes, this.renderer.domElement)
     }
@@ -55,7 +59,8 @@ export class Stage extends EventDispatcher {
   }
 
   initializeNavigationCube() {
-    this.navScene = this.config.navigationCube ? initNavCube(this.config, this.camera) : null;
+    let width = this.container.clientWidth, height = this.container.clientHeight;
+    this.navScene = this.config.navigationCube ? initNavCube(this.config, this.camera, width, height) : null;
   }
 
   add(item) {
@@ -83,6 +88,7 @@ export class Stage extends EventDispatcher {
 
     this.camera.position.set(0, this.config.cameraPosY, this.config.cameraPosZ);
     this.camera.lookAt(0, this.config.lookAtY, 0);
+    if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
 
     if (this.controlsManager) {
       this.controlsManager.setCamera(this.camera);
@@ -131,8 +137,13 @@ export class Stage extends EventDispatcher {
   }
 
   animate() {
-    requestAnimationFrame(() => this.animate());
-    this.renderer.render(this.scene, this.camera);
+    requestAnimationFrame((time) => {
+      this.dispatchEvent({type: 'before-render', time});
+      this.renderer.render(this.scene, this.camera);
+      this.animate()
+      Tween.update(time)
+      this.dispatchEvent({type: 'after-render', time});
+    });
 
     // if there's a nav scene, render it
     if (this.navScene) {

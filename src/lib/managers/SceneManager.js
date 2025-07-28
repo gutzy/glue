@@ -10,13 +10,21 @@ export class SceneManager {
   }
 
   initScene() {
-    this.setupSceneSettings(this.config.backgroundColor)
+    this.setupSceneSettings(this.config.backgroundColor, this.config.floorColor, this.config.curtainColor)
     this.addLights()
   }
 
-  setupSceneSettings(backgroundColor) {
+  setupSceneSettings(backgroundColor, floorColor, curtainColor) {
     this.scene.background = new THREE.Color(backgroundColor || 0x000000);
     this.scene.fog = new THREE.Fog(0x000000, 1, 1000);
+
+    const floor = this.scene.getObjectByName('ground');
+    if (floor) {
+      this.createFloor(floor.geometry.parameters.width, floor.geometry.parameters.height, floorColor)
+    }
+    if (this.backdrop) {
+        this.createStageBackdrop(this.curtainSizeWidth, this.curtainSizeHeight, this.curtainHeight, this.gap, curtainColor);
+    }
   }
 
   addLights() {
@@ -45,15 +53,21 @@ export class SceneManager {
   }
 
   // create a plane in the back of the stage
-  createStageBackdrop(width, height, gap = 0.25) {
+  createStageBackdrop(width, height, curtainHeight = 4, gap = 0.25, curtainColor = 0x881111) {
+    console.log("Creating stage backdrop with width:", width, "height:", height, "curtainHeight:", curtainHeight, "gap:", gap, "curtainColor:", curtainColor);
     if (this.backdrop) {
         this.removeStageBackdrop();
     }
 
-    const geometry = new THREE.PlaneGeometry(width, 4, 80, 3);
-    const material = new THREE.MeshStandardMaterial({ color: 0x881111, side: THREE.DoubleSide });
+    if (!this.curtainHeight) this.curtainHeight = curtainHeight;
+    if (!this.gap) this.gap = gap;
+    if (!this.curtainSizeWidth) this.curtainSizeWidth = width;
+    if (!this.curtainSizeHeight) this.curtainSizeHeight = height;
+
+    const geometry = new THREE.PlaneGeometry(width, curtainHeight, 80, 3);
+    const material = new THREE.MeshStandardMaterial({ color: curtainColor, side: THREE.DoubleSide });
     const plane = new THREE.Mesh(geometry, material);
-    plane.position.set(0, 2, -height/2 + gap);
+    plane.position.set(0, curtainHeight/2, -height/2 + gap);
     this.backdrop = plane;
     this.applyZAxisWaves(plane);
     this.scene.add(plane);
@@ -69,7 +83,7 @@ export class SceneManager {
     gridHelper.position.y = -0.01;
   }
 
-  createFloor(width = 10, height = 10) {
+  createFloor(width = 10, height = 10, floorColor = 0xeeeeee) {
     // remove any existing ground
     const oldGround = this.scene.getObjectByName('ground');
     if (oldGround) {
@@ -77,7 +91,7 @@ export class SceneManager {
     }
 
     const geometry = new THREE.BoxGeometry(width, height, 0.3);
-    const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+    const material = new THREE.MeshPhongMaterial({ color: floorColor, side: THREE.DoubleSide });
     const ground = new THREE.Mesh(geometry, material);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.15;

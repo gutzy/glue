@@ -2,11 +2,13 @@ export default class Config {
   constructor(config) {
     this.cameraType = 'orthographic';
     this.cameraInitialZoom = 12;
-    this.lookAtY = 3;
+    this.lookAtY = 0;
     this.cameraPosX = 0;
     this.cameraPosY = 100;
     this.cameraPosZ = 100;
     this.modelScale = 1;
+    this.rotation = 0;
+    this.animateCameraZoom = true;
     this.showDebugGui = false;
     this.enablePan = false;
     this.enableZoom = false;
@@ -17,6 +19,8 @@ export default class Config {
     this.rotatingHelper = false;
     this.boundingBoxColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xff8000]
     this.backgroundColor = 0x000000;
+    this.floorColor = 0xeeeeee;
+    this.curtainColor = 0x881111;
 
 
     if (config) this.updateConfig(config);
@@ -30,6 +34,8 @@ export default class Config {
       if (config.cameraPosY !== undefined) this.cameraPosY = config.cameraPosY;
       if (config.cameraPosZ !== undefined) this.cameraPosZ = config.cameraPosZ;
       if (config.modelScale !== undefined) this.modelScale = config.modelScale;
+      if (config.rotation !== undefined) this.rotation = config.rotation;
+      if (config.animateCameraZoom !== undefined) this.animateCameraZoom = config.animateCameraZoom;
       if (config.showDebugGui !== undefined) this.showDebugGui = config.showDebugGui;
       if (config.enablePan !== undefined) this.enablePan = config.enablePan;
       if (config.navigationCube !== undefined) this.navigationCube = config.navigationCube;
@@ -40,5 +46,7 @@ export default class Config {
       if (config.dragItems !== undefined) this.dragItems = config.dragItems;
       if (config.boundingBoxColors !== undefined) this.boundingBoxColors = config.boundingBoxColors;
       if (config.backgroundColor !== undefined) this.backgroundColor = config.backgroundColor;
+      if (config.floorColor !== undefined) this.floorColor = config.floorColor;
+      if (config.curtainColor !== undefined) this.curtainColor = config.curtainColor;
     }
 }

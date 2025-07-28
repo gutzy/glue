@@ -4,13 +4,20 @@ import * as THREE from 'three';
 const mouse = new THREE.Vector2();
 let isDragging = false;
 
+import Tween from './Tween.js';
+
 let mouseDownStartPoint = { x: 0, y: 0 };
 let lastMousePosition = { x: 0, y: 0 };
 const raycaster = new THREE.Raycaster();
 
+const USE_TWEENS = true,
+    tweenDuration = 300
+
 let myConfig;
 
 let _width = window.innerWidth, _height = window.innerHeight;
+
+let _startRadius
 
 export function resetNavCameraType(type = 'orthographic', width = window.innerWidth, height = window.innerHeight) {
 
@@ -176,13 +183,12 @@ export function updateNavCubeRotation() {
 }
 
 function onMouseDown(event) {
+    _startRadius = mainCamera.position.length();
     let target = event.target;
     // get target size
     const rect = target.getBoundingClientRect();
     _width = rect.width;
     _height = rect.height;
-    // console.log("Target size: ", rect.width, rect.height, "Window size: ", window.innerWidth, window.innerHeight)
-    // console.log("Target position: ", rect.left, rect.top, "Window position: ", window.innerWidth, window.innerHeight)
     // Check if the click is on the navCube
     mouse.x = ((event.clientX-rect.left) / (rect.width || window.innerWidth)) * 2 - 1;
     mouse.y = -((event.clientY-rect.top) / (rect.height || window.innerHeight)) * 2 + 1;
@@ -218,7 +224,7 @@ function onMouseMove(event) {
         return;
     }
 
-    const power = 0.04;
+    const power = 0.040;
 
     const deltaX = (event.clientX - rect.left) - lastMousePosition.x; // Horizontal drag
     const deltaY = (event.clientY - rect.top) - lastMousePosition.y; // Vertical drag
@@ -227,17 +233,60 @@ function onMouseMove(event) {
     navCube.rotation.y -= deltaX * power; // Reverse horizontal drag -> Y-axis rotation
     navCube.rotation.x -= deltaY * power; // Reverse vertical drag -> X-axis rotation
 
+    while (navCube.rotation.y > Math.PI) {
+        navCube.rotation.y -= Math.PI * 2; // Normalize rotation to [-PI, PI]
+    }
+    navCube.rotation.x = THREE.MathUtils.clamp(
+        navCube.rotation.x,
+        -Math.PI / 2 + 0.01,  // ≈ +89°
+        Math.PI / 2 - 0.01    // ≈ -89°
+    );
+    // navCube.rotation.y = THREE.MathUtils.clamp(
+    //     navCube.rotation.y,
+    //     -Math.PI / 1.02 + 0.01,       // ≈ -180°
+    //     Math.PI / 1.02 - 0.01         // ≈ +180°
+    // );
+    navCube.rotation.z = 0; // Reset Z rotation to avoid skewing
+
+    // Clamp the rotation values to limit scrolling
+    // navCube.rotation.x = THREE.MathUtils.clamp(navCube.rotation.x, -Math.PI, Math.PI);
+    // navCube.rotation.y = THREE.MathUtils.clamp(navCube.rotation.y, -Math.PI, Math.PI);
+
     // Sync the main camera with the navCube
     const rotation = new THREE.Euler(navCube.rotation.x, -navCube.rotation.y, 0, 'XYZ'); // Negate only Y for camera
-    mainCamera.position.setFromSphericalCoords(10, Math.PI / 2 - rotation.x, rotation.y);
-    mainCamera.lookAt(0, myConfig.lookAtY || 0, 0);
+    if (USE_TWEENS) {
+            let from = mainCamera.position.clone(),
+            to = mainCamera.position.clone().setFromSphericalCoords(Math.max(5, _startRadius), Math.PI / 2 - rotation.x, rotation.y);
+
+        let tweens = Tween.getAll();
+        if (tweens.length > 0) {
+            for (let i = 0; i < tweens.length; i++) {
+                if (tweens[i]._object === mainCamera.position) {
+                    tweens[i].stop();
+                }
+            }
+        }
+
+        Tween.create(from, to, 2,(pos)=> {
+            mainCamera.position.set(pos._object.x, pos._object.y, pos._object.z);
+            mainCamera.lookAt(0, myConfig.lookAtY || 0, 0);
+            mainCamera.updateProjectionMatrix();
+            mainCamera.updateMatrixWorld();
+        })
+
+    }
+    else {
+        mainCamera.position.setFromSphericalCoords(Math.max(5, _startRadius), Math.PI / 2 - rotation.x, rotation.y);
+        mainCamera.lookAt(0, myConfig.lookAtY || 0, 0);
+        mainCamera.updateProjectionMatrix();
+        mainCamera.updateMatrixWorld();
+    }
 
     lastMousePosition.x = event.clientX - rect.left;
     lastMousePosition.y = event.clientY - rect.top;
 
     // Ensure camera updates
-    mainCamera.updateProjectionMatrix();
-    mainCamera.updateMatrixWorld();
+
 }
 
 function onMouseUp() {

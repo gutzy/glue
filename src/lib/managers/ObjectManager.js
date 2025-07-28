@@ -119,6 +119,8 @@ export class ObjectManager {
         model.boxId = box.uniqueId
         box.onClickEvent = onClick
 
+        this.stage.controlsManager.resetDragControls(box)
+
         return model
     }
 

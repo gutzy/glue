@@ -2,6 +2,8 @@ import { Box } from './objects/Box.js';
 import { createOBB, adjustPosition } from './utils/OBBUtils.js';
 import {Box2, Vector2, Vector3} from "three";
 
+const NO_CLIPPING = true
+
 export class CollisionHandler {
   constructor(objectManager) {
     this.objectManager = objectManager;
@@ -129,11 +131,15 @@ export class CollisionHandler {
           else if (box.stackable) {
             stackableObjects.push(box);
           } else {
-            collidingObjects.add(box);
-            hasCollision = true;
-            // Prevent adjusting position if collision is with the stackedTo counterpart
-            if (draggedObject.stackedTo !== box) {
-              adjustPosition(draggedObject, draggedOBB, otherOBB, step);
+
+            if (!NO_CLIPPING) {
+              collidingObjects.add(box);
+
+              hasCollision = true;
+              // Prevent adjusting position if collision is with the stackedTo counterpart
+              if (draggedObject.stackedTo !== box) {
+                adjustPosition(draggedObject, draggedOBB, otherOBB, step);
+              }
             }
           }
         }

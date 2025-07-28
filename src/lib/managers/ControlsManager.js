@@ -1,9 +1,12 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { DragControls } from 'three/examples/jsm/controls/DragControls';
+import { DragControlsPlus} from "../utils/DragControlsPlus";
 import * as THREE from "three";
+import Tween from '../utils/Tween.js';
 
 let dragged = null;
 // rotating helper
+
+const USE_TWEENS = true; // Set to false if you want to use the old method of animating camera zoom
 
 export class ControlsManager {
   constructor(camera, domElement, stage, config = {}) {
@@ -12,13 +15,33 @@ export class ControlsManager {
     this.stage = stage;
     this.config = config;
     this.dragOffset = new THREE.Vector3();
+    this.winX = window.innerWidth;
+    this.winY = window.innerHeight;
 
     this.orbitControls = new OrbitControls(this.camera, this.domElement);
     this.configureOrbitControls()
+
+    this.initWindowControls()
+  }
+
+  initWindowControls() {
+    window.addEventListener('mousemove', (event) => {
+        this.winX = event.clientX;
+        this.winY = event.clientY;
+    })
+  }
+
+  resetDragControls(target) {
+    let el = this.stage.renderer.domElement,
+        offset = el.getBoundingClientRect(),
+        x = this.winX - offset.left,
+        y = this.winY - offset.top
+    console.log(offset.left, offset.top, this.winX, this.winY, x, y)
+    this.dragControls.resetSelected(target, this.winX, this.winY)
   }
 
   initDragControls(boxes, domElement) {
-    this.dragControls = new DragControls(boxes, this.camera, domElement);
+    this.dragControls = new DragControlsPlus(boxes, this.camera, domElement);
 
     let isFirstDragFrame = false;
 
@@ -123,14 +146,45 @@ export class ControlsManager {
   resetCameraPosition() {
     // if it's perspective, reset camera position to half the pos
     if (this.config.cameraType === 'perspective') {
-      this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2);
-      this.orbitControls.target.set(0, this.config.lookAtY, 0);
-      this.camera.lookAt(0, this.config.lookAtY, 0);
+      if (USE_TWEENS) {
+        Tween.create(this.camera.position, {
+          x: this.config.cameraPosX / 2,
+          y: this.config.cameraPosY / 2,
+          z: this.config.cameraPosZ / 2
+        }, 300, () => {
+            this.camera.lookAt(0, this.config.lookAtY, 0);
+            this.orbitControls.target.set(0, this.config.lookAtY, 0);
+            if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
+          this.camera.updateProjectionMatrix();
+        });
+      }
+      else {
+        this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2);
+        this.orbitControls.target.set(0, this.config.lookAtY, 0);
+        this.camera.lookAt(0, this.config.lookAtY, 0);
+        if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
+      }
+
     }
     else {
-      this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
-      this.orbitControls.target.set(0, 0, 0);
-      this.camera.lookAt(0, this.config.lookAtY, 0);
+      if (USE_TWEENS) {
+        Tween.create(this.camera.position, {
+          x: this.config.cameraPosX,
+          y: this.config.cameraPosY,
+          z: this.config.cameraPosZ
+        }, 300, () => {
+            this.camera.lookAt(0, this.config.lookAtY, 0);
+            this.orbitControls.target.set(0, this.config.lookAtY, 0);
+          if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
+          this.camera.updateProjectionMatrix();
+        });
+      }
+      else {
+        this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ);
+        this.orbitControls.target.set(0, this.config.lookAtY, 0);
+        this.camera.lookAt(0, this.config.lookAtY, 0);
+        if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
+      }
     }
 
     this.orbitControls.target.set(0, this.config.lookAtY, 0)
@@ -182,13 +236,16 @@ export class ControlsManager {
         this.camera.position.x = -(100+this.config.cameraPosX) + ((100+this.config.cameraPosX) * progress)
         this.camera.position.y = (100+this.config.cameraPosY) - (100 * progress)
         this.camera.lookAt(0,this.config.lookAtY,0)
+        if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
         this.camera.updateProjectionMatrix()
         if (progress < 1) {
           requestAnimationFrame(animate)
         }
         else {
           this.camera.position.set(this.config.cameraPosX, this.config.cameraPosY, this.config.cameraPosZ)
+          this.orbitControls.target.set(0, this.config.lookAtY, 0);
           this.camera.lookAt(0,this.config.lookAtY,0)
+          if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
           this.camera.updateProjectionMatrix()
         }
       }
@@ -209,13 +266,16 @@ export class ControlsManager {
           this.camera.position.y = (30+(this.config.cameraPosY/2)) - (30 * progress)
           this.camera.position.z = ((this.config.cameraPosZ/2) * progress)
           this.camera.lookAt(0, this.config.lookAtY, 0)
+          if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
           // this.camera.updateProjectionMatrix()
           if (progress < 1) {
             requestAnimationFrame(animate)
           }
           else {
             this.camera.position.set(this.config.cameraPosX/2, this.config.cameraPosY/2, this.config.cameraPosZ/2)
+            this.orbitControls.target.set(0, this.config.lookAtY, 0);
             this.camera.lookAt(0,this.config.lookAtY,0)
+            if (this.config.rotation) { this.camera.rotation.z = this.config.rotation * Math.PI / 180; }
           }
         }
     }
