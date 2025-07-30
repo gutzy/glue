@@ -34,10 +34,10 @@ export class ControlsManager {
   resetDragControls(target) {
     let el = this.stage.renderer.domElement,
         offset = el.getBoundingClientRect(),
-        x = this.winX - offset.left,
-        y = this.winY - offset.top
-    console.log(offset.left, offset.top, this.winX, this.winY, x, y)
-    this.dragControls.resetSelected(target, this.winX, this.winY)
+        x = this.winX,
+        y = this.winY;
+
+    this.dragControls.resetSelected(target, x, y)
   }
 
   initDragControls(boxes, domElement) {
@@ -104,11 +104,18 @@ export class ControlsManager {
   }
 
   updateDragPosition(object, event) {
+    let bounds = this.stage.sceneManager.bounds;
+    // console.log({bounds})
     let intersectPoint = null;
       intersectPoint = this.getIntersectPoint(event);
     if (intersectPoint) {
       object.position.copy(intersectPoint).sub(this.dragOffset);
       object.position.y = object.geometry.parameters.height / 2; // Ensure the object stays on the ground
+    }
+    if (bounds && object.added) {
+      // Ensure the object stays within the bounds
+      object.position.x = Math.max(bounds.x1, Math.min(bounds.x2, object.position.x));
+      object.position.z = Math.max(bounds.z1, Math.min(bounds.z2, object.position.z));
     }
     // if frame offset exceeds what we want, set it to 0
   }

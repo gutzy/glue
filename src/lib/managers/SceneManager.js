@@ -7,6 +7,8 @@ export class SceneManager {
     this.container = container;
     this.config = config;
     this.initScene();
+
+    this.bounds = null
   }
 
   initScene() {
@@ -97,5 +99,13 @@ export class SceneManager {
     ground.position.y = -0.15;
     ground.name = 'ground';
     this.scene.add(ground);
+
+    const floorBoundingBox = new THREE.Box3().setFromObject(ground);
+    this.bounds = {
+      x1: floorBoundingBox.min.x,
+      z1: floorBoundingBox.min.z,
+      x2: floorBoundingBox.max.x,
+      z2: floorBoundingBox.max.z
+    }
   }
 }

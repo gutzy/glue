@@ -4,11 +4,13 @@ import {
     Plane,
     Raycaster,
     Vector2,
+    Box3,
     Vector3
 } from 'three';
 
 const _plane = new Plane();
 const _raycaster = new Raycaster();
+
 
 const _pointer = new Vector2();
 const _offset = new Vector3();
@@ -261,24 +263,45 @@ class DragControlsPlus extends EventDispatcher {
         }
 
         // reset selected object programatically and start dragging it
-        function resetSelected(obj,x,y) {
-            if ( _selected ) {
-                scope.dispatchEvent( { type: 'dragend', object: _selected } );
-            }
+        // reset selected object programmatically and start dragging it
+// clientX/Y are viewport client coordinates (e.g. from a pointer/mouse event)
+        const _bbox = new Box3();
+        const _handleLocal = new Vector3();
+        const _handleWorld = new Vector3();
+        const _pivotWorld = new Vector3();
+
+// clientX/Y are viewport coords from the UI that triggered the programmatic drag
+        function resetSelected(obj, clientX, clientY, opts = {}) {
+            if (_selected) scope.dispatchEvent({ type: 'dragend', object: _selected });
+
             _selected = obj;
 
-            // move object to the mouse position, which is -outside- the camera frustum and stage
-            _raycaster.setFromCamera( _pointer, _camera );
-            _raycaster.ray.origin.set(x,y,1000);
-            _raycaster.ray.intersectPlane( _plane, _intersection );
+            // recalculate offset by clientX/Y
+            const rect = _domElement.getBoundingClientRect();
+            _pointer.x = (clientX - rect.left) / rect.width * 2 - 1;
+            _pointer.y = - (clientY - rect.top) / rect.height * 2 + 1;
+            _raycaster.setFromCamera(_pointer, _camera);
+            // intersect with infinite plane
+            _raycaster.ray.intersectPlane(new Plane().setFromNormalAndCoplanarPoint(
+                _camera.getWorldDirection(new Vector3()).normalize(),
+                _worldPosition.setFromMatrixPosition(_selected.matrixWorld)
+            ), _intersection);
 
-            _selected.position.copy( _intersection.sub( _offset ).applyMatrix4( _inverseMatrix ) );
-            scope.dispatchEvent( { type: 'dragstart', object: _selected } );
+            console.log("Resetting selected object", _selected, "at", _intersection, _pointer.x, _pointer.y, _plane);
+
+            // place object at intersection point
+            _inverseMatrix.copy(_selected.parent.matrixWorld).invert();
+            _offset.copy(_intersection).sub(_worldPosition.setFromMatrixPosition(_selected.matrixWorld));
+            _selected.position.copy(_intersection);
+            _selected.updateMatrixWorld(true);
+            console.log("Selected object position after reset:", _selected.position);
+
+            scope.dispatchEvent({ type: 'dragstart', object: _selected });
         }
 
-        activate();
 
-        // API
+
+        activate();
 
         this.enabled = true;
         this.recursive = true;
