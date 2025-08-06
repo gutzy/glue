@@ -117,9 +117,15 @@ export class ObjectManager {
         })
 
         model.boxId = box.uniqueId
+        
+        // Recursively set boxId on all children to ensure raycasting works correctly
+        model.traverse((child) => {
+            child.boxId = box.uniqueId;
+        });
+        
         box.onClickEvent = onClick
 
-        this.stage.controlsManager.resetDragControls(box)
+        // this.stage.controlsManager.resetDragControls(box)
 
         return model
     }

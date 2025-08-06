@@ -5,7 +5,7 @@ import {
     Raycaster,
     Vector2,
     Box3,
-    Vector3
+    Vector3, Mesh
 } from 'three';
 
 const _plane = new Plane();
@@ -48,7 +48,7 @@ class DragControlsPlus extends EventDispatcher {
             _domElement.addEventListener( 'pointermove', onPointerMove );
             _domElement.addEventListener( 'pointerdown', onPointerDown );
             _domElement.addEventListener( 'pointerup', onPointerCancel );
-            _domElement.addEventListener( 'pointerleave', onPointerCancel );
+            // _domElement.addEventListener( 'pointerleave', onPointerCancel );
 
         }
 
@@ -87,6 +87,28 @@ class DragControlsPlus extends EventDispatcher {
 
         }
 
+        function _objectsButModelsFirst() {
+            return _objects.map(o => {
+                if (o.attachedModel) {
+                    return o.attachedModel;
+                }
+                return o;
+            })
+        }
+
+        function _intersectionsButBoxesFirst() {
+            return _intersections.map((i) => {
+                let obj = i.object
+                while (obj.parent && !obj.boxId) {
+                    obj = obj.parent;
+                }
+                if (obj.boxId) {
+                    return _objects.find(o => o.uniqueId === obj.boxId) || i.object;
+                }
+                return i.object;
+            })
+        }
+
         function onPointerMove( event ) {
 
             if ( scope.enabled === false ) return;
@@ -96,6 +118,7 @@ class DragControlsPlus extends EventDispatcher {
             _raycaster.setFromCamera( _pointer, _camera );
 
             if ( _selected ) {
+
 
                 if ( scope.mode === 'translate' ) {
 
@@ -126,11 +149,14 @@ class DragControlsPlus extends EventDispatcher {
                     _intersections.length = 0;
 
                     _raycaster.setFromCamera( _pointer, _camera );
-                    _raycaster.intersectObjects( _objects, scope.recursive, _intersections );
+                    _raycaster.intersectObjects( _objectsButModelsFirst(), scope.recursive, _intersections );
 
                     if ( _intersections.length > 0 ) {
 
-                        const object = _intersections[ 0 ].object;
+                        let object = _intersectionsButBoxesFirst()[ 0 ];
+                        if (object.boxId) {
+                            console.log("Nice", object)
+                        }
 
                         _plane.setFromNormalAndCoplanarPoint( _camera.getWorldDirection( _plane.normal ), _worldPosition.setFromMatrixPosition( object.matrixWorld ) );
 
@@ -182,19 +208,20 @@ class DragControlsPlus extends EventDispatcher {
             _intersections.length = 0;
 
             _raycaster.setFromCamera( _pointer, _camera );
-            _raycaster.intersectObjects( _objects, scope.recursive, _intersections );
+            _raycaster.intersectObjects( _objectsButModelsFirst(), scope.recursive, _intersections );
 
             if ( _intersections.length > 0 ) {
+
 
                 if ( scope.transformGroup === true ) {
 
                     // look for the outermost group in the object's upper hierarchy
 
-                    _selected = findGroup( _intersections[ 0 ].object );
+                    _selected = findGroup( _intersectionsButBoxesFirst()[ 0 ] );
 
                 } else {
 
-                    _selected = _intersections[ 0 ].object;
+                    _selected = _intersectionsButBoxesFirst()[ 0 ];
 
                 }
 
@@ -227,13 +254,14 @@ class DragControlsPlus extends EventDispatcher {
 
         }
 
-        function onPointerCancel() {
+        function onPointerCancel(e) {
 
             if ( scope.enabled === false ) return;
 
             if ( _selected ) {
 
                 scope.dispatchEvent( { type: 'dragend', object: _selected } );
+                console.log("Canceled",e)
 
                 _selected = null;
 
@@ -276,27 +304,8 @@ class DragControlsPlus extends EventDispatcher {
 
             _selected = obj;
 
-            // recalculate offset by clientX/Y
-            const rect = _domElement.getBoundingClientRect();
-            _pointer.x = (clientX - rect.left) / rect.width * 2 - 1;
-            _pointer.y = - (clientY - rect.top) / rect.height * 2 + 1;
-            _raycaster.setFromCamera(_pointer, _camera);
-            // intersect with infinite plane
-            _raycaster.ray.intersectPlane(new Plane().setFromNormalAndCoplanarPoint(
-                _camera.getWorldDirection(new Vector3()).normalize(),
-                _worldPosition.setFromMatrixPosition(_selected.matrixWorld)
-            ), _intersection);
-
-            console.log("Resetting selected object", _selected, "at", _intersection, _pointer.x, _pointer.y, _plane);
-
-            // place object at intersection point
-            _inverseMatrix.copy(_selected.parent.matrixWorld).invert();
-            _offset.copy(_intersection).sub(_worldPosition.setFromMatrixPosition(_selected.matrixWorld));
-            _selected.position.copy(_intersection);
-            _selected.updateMatrixWorld(true);
-            console.log("Selected object position after reset:", _selected.position);
-
-            scope.dispatchEvent({ type: 'dragstart', object: _selected });
+            console.log("Resetting selected object", _selected);
+            scope.dispatchEvent({ type: 'dragstart', object: _selected })
         }
 
 

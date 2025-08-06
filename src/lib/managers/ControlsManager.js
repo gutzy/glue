@@ -47,7 +47,7 @@ export class ControlsManager {
 
     this.dragControls.addEventListener('dragstart', event => {
       if (dragged) {
-        console.log("An object is already being dragged")
+        console.log("An object is already being dragged", dragged)
         return
       }
       else {
@@ -72,6 +72,7 @@ export class ControlsManager {
         isFirstDragFrame = false;
         return; // skip the first frame to avoid the "jump"
       }
+
 
       this.updateDragPosition(event.object, event);
       this.stage.dispatchEvent({ type: 'drag-move', object: event.object });
