@@ -8,3 +8,4 @@ export {SelectedItemHelper} from './lib/utils/SelectedItemHelper.js';
 export {SelectedZoneHelper} from './lib/utils/SelectedZoneHelper.js';
 export {RotatingHelper} from './lib/utils/RotatingHelper.js';
 export {toScreenPosition, PointLightRow, getTopIntersections} from './lib/utils/ModelUtils.js';
+export { computeInfluenceRadius, getObjectCenter } from './lib/utils/ProximityUtils.js';
