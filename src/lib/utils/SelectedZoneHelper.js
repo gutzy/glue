@@ -10,6 +10,11 @@ export class SelectedZoneHelper {
         this.color = color
         this.size = size
         this.offsetY = offsetY // Offset for the Y position of the mesh
+        this._currentOpacity = 1.0
+        this._opacityAnimationFrame = null
+        this._opacityAnimationStart = null
+        this._opacityAnimationFrom = 1.0
+        this._opacityAnimationTo = 1.0
 
         this.blobSizes = objects.map(obj => {
             const bbox = new THREE.Box3().setFromObject(obj)
@@ -27,7 +32,10 @@ export class SelectedZoneHelper {
                 uCount: { value: objects.length },
                 uThreshold: { value: this.threshold },
                 uColor: { value: new THREE.Color(color) },
+                uAlpha: { value: this._currentOpacity },
             },
+            blending: THREE.NormalBlending,
+            side: THREE.DoubleSide,
             vertexShader: `
                 varying vec2 vWorldPos;
 
@@ -43,6 +51,7 @@ export class SelectedZoneHelper {
                 uniform int uCount;
                 uniform float uThreshold;
                 uniform vec3 uColor;
+                uniform float uAlpha;
 
                 varying vec2 vWorldPos;
 
@@ -58,7 +67,7 @@ export class SelectedZoneHelper {
                     float alpha = smoothstep(uThreshold - 0.2, uThreshold + 0.2, influence);
                     if (alpha < 0.01) discard;
 
-                    gl_FragColor = vec4(uColor, alpha);
+                    gl_FragColor = vec4(uColor, alpha * uAlpha);
                 }
             `
         });
@@ -93,5 +102,57 @@ export class SelectedZoneHelper {
         this.material.uniforms.uRadii.needsUpdate = true;
 
         this.material.uniforms.uColor.value = new THREE.Color(this.color);
+    }
+
+    setOpacity(opacity) {
+        const clamped = Math.max(0, Math.min(1, opacity));
+        this._currentOpacity = clamped;
+        if (this.material && this.material.uniforms && this.material.uniforms.uAlpha) {
+            this.material.uniforms.uAlpha.value = clamped;
+            this.material.uniforms.uAlpha.needsUpdate = true;
+        }
+    }
+
+    fadeOpacity(targetOpacity, duration = 500) {
+        const clampedTarget = Math.max(0, Math.min(1, targetOpacity));
+        if (Math.abs(clampedTarget - this._currentOpacity) < 0.001) {
+            this.setOpacity(clampedTarget);
+            return Promise.resolve();
+        }
+        if (this._opacityAnimationFrame) {
+            cancelAnimationFrame(this._opacityAnimationFrame);
+            this._opacityAnimationFrame = null;
+        }
+        this._opacityAnimationFrom = this._currentOpacity;
+        this._opacityAnimationTo = clampedTarget;
+        this._opacityAnimationStart = null;
+        return new Promise(resolve => {
+            const step = (timestamp) => {
+                if (this._opacityAnimationStart === null) this._opacityAnimationStart = timestamp;
+                const elapsed = timestamp - this._opacityAnimationStart;
+                const t = duration <= 0 ? 1 : Math.min(1, elapsed / duration);
+                const eased = t; // linear is fine
+                const value = this._opacityAnimationFrom + (this._opacityAnimationTo - this._opacityAnimationFrom) * eased;
+                this.setOpacity(value);
+                if (t < 1) {
+                    this._opacityAnimationFrame = requestAnimationFrame(step);
+                } else {
+                    this._opacityAnimationFrame = null;
+                    resolve();
+                }
+            };
+            this._opacityAnimationFrame = requestAnimationFrame(step);
+        });
+    }
+
+    dispose() {
+        if (this._opacityAnimationFrame) {
+            cancelAnimationFrame(this._opacityAnimationFrame);
+            this._opacityAnimationFrame = null;
+        }
+        if (this.mesh) {
+            if (this.mesh.geometry) this.mesh.geometry.dispose();
+            if (this.mesh.material) this.mesh.material.dispose();
+        }
     }
 }
