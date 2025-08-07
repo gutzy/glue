@@ -65,7 +65,7 @@ export class SelectedZoneHelper {
                     }
 
                     float alpha = smoothstep(uThreshold - 0.2, uThreshold + 0.2, influence);
-                    if (alpha < 0.01) discard;
+                    if (alpha * uAlpha < 0.01) discard;
 
                     gl_FragColor = vec4(uColor, alpha * uAlpha);
                 }
