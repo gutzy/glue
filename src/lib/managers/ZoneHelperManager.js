@@ -29,8 +29,7 @@ export class ZoneHelperManager {
       falloff = 1,
       maxDistance = 10,
       threshold = 0.002,
-      initialOpacity = null,
-      placeholderObjects = []
+      initialOpacity = null
     } = options;
 
     const helper = new SelectedZoneHelper(objects, color, influence, falloff, maxDistance, threshold);
@@ -47,12 +46,7 @@ export class ZoneHelperManager {
       metadata: {
         color,
         objects: [...objects],
-        placeholderObjects: Array.isArray(placeholderObjects) ? [...placeholderObjects] : [],
-        influence,
-        falloff,
-        maxDistance,
-        threshold,
-        initialOpacity
+        ...options
       }
     });
 
@@ -84,15 +78,6 @@ export class ZoneHelperManager {
 
     console.log('🔍 Removing helper from stage');
     this.stage.remove(helperData.helper.mesh);
-    // Remove placeholder objects if any
-    const placeholders = helperData.metadata.placeholderObjects || [];
-    placeholders.forEach((obj) => {
-      try {
-        this.stage.scene.remove(obj);
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) obj.material.dispose();
-      } catch (e) {}
-    });
     
     // Properly dispose of the helper to clean up materials and geometries
     helperData.helper.dispose();
@@ -103,16 +88,8 @@ export class ZoneHelperManager {
 
   // Remove all helpers
   removeAllHelpers() {
-    this.helpers.forEach((helperData) => {
+    this.helpers.forEach((helperData, helperId) => {
       this.stage.remove(helperData.helper.mesh);
-      const placeholders = helperData.metadata.placeholderObjects || [];
-      placeholders.forEach((obj) => {
-        try {
-          this.stage.scene.remove(obj);
-          if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) obj.material.dispose();
-        } catch (e) {}
-      });
       // Properly dispose of each helper
       helperData.helper.dispose();
     });
@@ -192,56 +169,6 @@ export class ZoneHelperManager {
   // Check if helper exists
   hasHelper(helperId) {
     return this.helpers.has(helperId);
-  }
-
-  // High-level: build helpers from positions/items
-  // positions: [{ name, color }]
-  // items: [{ uniqueId, position }]
-  // getStageObjectById: (id) => THREE.Object3D
-  // options: { initialOpacity?: number }
-  createHelpersForPositions({ positions = [], items = [], getStageObjectById, options = {} }) {
-    const positionGroups = new Map();
-    items.forEach(item => {
-      if (!item.position) return;
-      const stageObj = typeof getStageObjectById === 'function' ? getStageObjectById(item.uniqueId) : null;
-      if (!stageObj) return;
-      if (!positionGroups.has(item.position)) positionGroups.set(item.position, []);
-      positionGroups.get(item.position).push(stageObj);
-    });
-
-    let createdCount = 0;
-    positionGroups.forEach((objects, positionName) => {
-      if (!objects || objects.length === 0) return;
-      const pos = positions.find(p => p.name === positionName);
-      const color = pos ? pos.color : 0x00ffcc;
-      const helperId = `position_${positionName}`;
-      this.createHelper(helperId, objects, color, {
-        ...options,
-        initialOpacity: options.initialOpacity ?? 0,
-      });
-      createdCount += 1;
-    });
-
-    if (createdCount === 0 && positions.length > 0) {
-      // Create placeholders at center for each position
-      positions.forEach(pos => {
-        const placeholderGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-        const placeholderMaterial = new THREE.MeshBasicMaterial({ visible: false });
-        const placeholderMesh = new THREE.Mesh(placeholderGeometry, placeholderMaterial);
-        placeholderMesh.position.set(0, 0, 0);
-        this.stage.scene.add(placeholderMesh);
-        const helperId = `position_${pos.name}`;
-        this.createHelper(helperId, [placeholderMesh], pos.color, {
-          initialOpacity: options.initialOpacity ?? 0,
-          placeholderObjects: [placeholderMesh],
-        });
-      });
-    }
-  }
-
-  rebuildHelpers({ positions = [], items = [], getStageObjectById, options = {} }) {
-    this.removeAllHelpers();
-    this.createHelpersForPositions({ positions, items, getStageObjectById, options });
   }
 
   // Compute an influence radius similar to SelectedZoneHelper's blob sizing

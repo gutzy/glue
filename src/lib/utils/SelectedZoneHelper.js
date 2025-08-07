@@ -127,12 +127,11 @@ export class SelectedZoneHelper {
         this._opacityAnimationTo = clampedTarget;
         this._opacityAnimationStart = null;
         return new Promise(resolve => {
-        const step = (timestamp) => {
+            const step = (timestamp) => {
                 if (this._opacityAnimationStart === null) this._opacityAnimationStart = timestamp;
                 const elapsed = timestamp - this._opacityAnimationStart;
                 const t = duration <= 0 ? 1 : Math.min(1, elapsed / duration);
-                // easeInOutQuad for smoother start/end
-                const eased = t < 0.5 ? 2.0 * t * t : -1 + (4 - 2 * t) * t;
+                const eased = t; // linear is fine
                 const value = this._opacityAnimationFrom + (this._opacityAnimationTo - this._opacityAnimationFrom) * eased;
                 this.setOpacity(value);
                 if (t < 1) {
