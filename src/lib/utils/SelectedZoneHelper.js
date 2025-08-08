@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 const maxBlobSize = 1
+const minBlobSize = 0.2 // Ensure visibility for tiny objects
 
 export class SelectedZoneHelper {
     constructor(objects, color = 0x00ffcc, radius = 2.0, threshold = 1.0, size = 20, offsetY = 0) {
@@ -19,7 +20,8 @@ export class SelectedZoneHelper {
         this.blobSizes = objects.map(obj => {
             const bbox = new THREE.Box3().setFromObject(obj)
             const size = bbox.getSize(new THREE.Vector3())
-            return Math.min(maxBlobSize, Math.max(size.x, size.z) / 2 * radius)
+            const computed = Math.max(size.x, size.z) / 2 * radius
+            return Math.max(minBlobSize, Math.min(maxBlobSize, computed))
         })
 
 
