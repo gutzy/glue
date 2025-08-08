@@ -33,6 +33,11 @@ export class Box extends THREE.Mesh {
   }
 
   stack(object) {
+    // Guard: avoid stacking cycles and duplicate parenting
+    if (object === this) return;
+    if (object.stackedTo && object.stackedTo !== this) {
+      object.stackedTo.unstack(object);
+    }
     this.stackedItems.add(object);
     object.setColor(0xffff00); // Change color to yellow when stacked
     object.relativePosition = {
@@ -101,14 +106,24 @@ export class Box extends THREE.Mesh {
   }
 
   rotateStackedItems(amount) {
+    const sinA = Math.sin(amount);
+    const cosA = Math.cos(amount);
     this.stackedItems.forEach(item => {
-      item.rotation.y += (amount);
-
-      // besides rotation, change item position depending on its relative position to the parent
-        const x = item.position.x - this.position.x;
-        const z = item.position.z - this.position.z;
-        item.position.x = this.position.x + x * Math.cos(amount) + z * Math.sin(amount);
-        item.position.z = this.position.z + z * Math.cos(amount) - x * Math.sin(amount);
+      const rel = item.relativePosition || {
+        x: item.position.x - this.position.x,
+        y: item.position.y - this.position.y,
+        z: item.position.z - this.position.z,
+      };
+      // Rotate around Y using the same handedness as prior implementation
+      const rx = rel.x * cosA + rel.z * sinA;
+      const rz = -rel.x * sinA + rel.z * cosA;
+      item.position.set(
+        this.position.x + rx,
+        this.position.y + rel.y,
+        this.position.z + rz
+      );
+      item.rotation.y += amount;
+      item.relativePosition = { x: rx, y: rel.y, z: rz };
 
       item.dispatchEvent({ type: 'change' });
       if (item.stackedItems) {

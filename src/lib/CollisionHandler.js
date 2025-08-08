@@ -11,7 +11,7 @@ export class CollisionHandler {
   }
 
   handleCollisions(draggedObject) {
-    const draggedOBB = createOBB(draggedObject);
+    let draggedOBB = createOBB(draggedObject);
     let hasCollision = false;
     let isStacking = false;
 
@@ -87,6 +87,8 @@ export class CollisionHandler {
       isStacking = false;
       collidingObjects.clear();
       stackableObjects.length = 0;
+      // Recompute OBB for the dragged object after any position changes from previous iteration
+      draggedOBB = createOBB(draggedObject);
 
       this.objectManager.children.forEach(box => {
         if (box === draggedObject || box.locked || !box.isMesh) return;
@@ -96,38 +98,62 @@ export class CollisionHandler {
         if (draggedOBB.intersectsOBB(otherOBB)) {
 
           if (box.snapsToSimilar && draggedObject.snapsToSimilar && box.meta.id === draggedObject.meta.id && box.rotation.equals(draggedObject.rotation)) {
-            let closestEdge = null;
+            // If both are stackable and dragged towards the center, prefer stacking-on-top
+            if (draggedObject.stackable && box.stackable) {
+              const dx = draggedOBB.center.x - otherOBB.center.x;
+              const dz = draggedOBB.center.z - otherOBB.center.z;
+              const centerDist = Math.hypot(dx, dz);
+              const centerThreshold = Math.min(otherOBB.halfSize.x, otherOBB.halfSize.z) * 0.3;
+              if (centerDist < centerThreshold) {
+                // snap to center in XZ and let stacking handler place on top
+                draggedObject.position.x = box.position.x;
+                draggedObject.position.z = box.position.z;
+                // Queue this box for stacking phase
+                stackableObjects.push(box);
+                return; // skip edge snapping when stacking is intended
+              }
+            }
+
+            // Otherwise, default to edge snapping on four sides
             const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
             const otherOBBMin = otherOBB.center.clone().sub(otherOBB.halfSize);
             const draggedOBBSize = draggedOBB.halfSize.clone();
             const otherOBBSize = otherOBB.halfSize.clone();
-            closestEdge = draggedOBBMin.clone().add(draggedOBBSize).sub(otherOBBMin.clone().add(otherOBBSize));
-            let closerToVerticalCenter = Math.abs(closestEdge.x) < Math.abs(closestEdge.z);
+            const closestEdge = draggedOBBMin.clone().add(draggedOBBSize).sub(otherOBBMin.clone().add(otherOBBSize));
+            const closerToVerticalCenter = Math.abs(closestEdge.x) < Math.abs(closestEdge.z);
             // snap left edge to right edge
             if (!closerToVerticalCenter && draggedObject.position.x < box.position.x) {
               draggedObject.position.x = box.position.x - (draggedOBB.halfSize.x + otherOBB.halfSize.x);
-              draggedObject.position.z = box.position.z
+              draggedObject.position.z = box.position.z;
             }
             // snap right edge to left edge
             else if (!closerToVerticalCenter && draggedObject.position.x > box.position.x) {
               draggedObject.position.x = box.position.x + (draggedOBB.halfSize.x + otherOBB.halfSize.x);
-                draggedObject.position.z = box.position.z
+              draggedObject.position.z = box.position.z;
             }
             // snap front edge to back edge
             if (draggedObject.position.z < box.position.z) {
               draggedObject.position.z = box.position.z - (draggedOBB.halfSize.z + otherOBB.halfSize.z);
-                draggedObject.position.x = box.position.x
+              draggedObject.position.x = box.position.x;
             }
             // snap back edge to front edge
             else if (draggedObject.position.z > box.position.z) {
               draggedObject.position.z = box.position.z + (draggedOBB.halfSize.z + otherOBB.halfSize.z);
-                draggedObject.position.x = box.position.x
+              draggedObject.position.x = box.position.x;
             }
-
-
           }
 
           else if (box.stackable) {
+            const dx = draggedOBB.center.x - otherOBB.center.x;
+            const dz = draggedOBB.center.z - otherOBB.center.z;
+            const centerDist = Math.hypot(dx, dz);
+            const centerThreshold = Math.min(otherOBB.halfSize.x, otherOBB.halfSize.z) * 0.3;
+            if (centerDist < centerThreshold) {
+              draggedObject.position.x = box.position.x;
+              draggedObject.position.z = box.position.z;
+              stackableObjects.push(box);
+              return;
+            }
             stackableObjects.push(box);
           } else {
 
@@ -151,6 +177,10 @@ export class CollisionHandler {
       stackableObjects.forEach(stackableObject => {
         handleStacking(draggedObject, stackableObject);
       });
+      // If stacking occurred, iterate again to allow climbing to the topmost stack
+      if (isStacking) {
+        hasCollision = true;
+      }
 
       if (!hasCollision) break;
 

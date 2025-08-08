@@ -81,6 +81,10 @@ export class ControlsManager {
 
     this.dragControls.addEventListener('dragend', event => {
       dragged = null
+      // Mark object as added to stage on first release
+      if (event.object && !event.object.addedToStage) {
+        event.object.addedToStage = true;
+      }
       this.stage.dispatchEvent({ type: 'drag-end', object: event.object });
       this.orbitControls.enabled = true;
     });
@@ -113,8 +117,8 @@ export class ControlsManager {
       object.position.copy(intersectPoint).sub(this.dragOffset);
       object.position.y = object.geometry.parameters.height / 2; // Ensure the object stays on the ground
     }
-    if (bounds && object.added) {
-      // Ensure the object stays within the bounds
+    if (bounds && object.addedToStage) {
+      // Ensure the object stays within the bounds only after it has been dropped once
       object.position.x = Math.max(bounds.x1, Math.min(bounds.x2, object.position.x));
       object.position.z = Math.max(bounds.z1, Math.min(bounds.z2, object.position.z));
     }
