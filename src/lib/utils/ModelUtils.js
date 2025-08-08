@@ -101,7 +101,6 @@ export function getBlueprintMesh(blueprint) {
 
 export function GLTFModel(url, {receiveShadow = false, castShadow = false}, onPercent = () => {}) {
     if (_modelCache[url]) {
-        // console.log("Using cached model")
         // restore the original texture
         let r = new Group().copy(new ObjectLoader().parse(JSON.parse(_modelCache[url])));
         const mesh = new Group();

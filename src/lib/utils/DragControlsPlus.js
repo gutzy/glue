@@ -154,9 +154,6 @@ class DragControlsPlus extends EventDispatcher {
                     if ( _intersections.length > 0 ) {
 
                         let object = _intersectionsButBoxesFirst()[ 0 ];
-                        if (object.boxId) {
-                            console.log("Nice", object)
-                        }
 
                         _plane.setFromNormalAndCoplanarPoint( _camera.getWorldDirection( _plane.normal ), _worldPosition.setFromMatrixPosition( object.matrixWorld ) );
 
@@ -261,7 +258,6 @@ class DragControlsPlus extends EventDispatcher {
             if ( _selected ) {
 
                 scope.dispatchEvent( { type: 'dragend', object: _selected } );
-                console.log("Canceled",e)
 
                 _selected = null;
 
@@ -304,7 +300,6 @@ class DragControlsPlus extends EventDispatcher {
 
             _selected = obj;
 
-            console.log("Resetting selected object", _selected);
             scope.dispatchEvent({ type: 'dragstart', object: _selected })
         }
 

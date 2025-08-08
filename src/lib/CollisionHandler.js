@@ -96,7 +96,6 @@ export class CollisionHandler {
         if (draggedOBB.intersectsOBB(otherOBB)) {
 
           if (box.snapsToSimilar && draggedObject.snapsToSimilar && box.meta.id === draggedObject.meta.id && box.rotation.equals(draggedObject.rotation)) {
-            console.log("SNAPPPP", {box, draggedObject})
             let closestEdge = null;
             const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
             const otherOBBMin = otherOBB.center.clone().sub(otherOBB.halfSize);
@@ -178,7 +177,6 @@ export class CollisionHandler {
 
   // used when an item below a certain item is removed, this will drop the top item to its original position
   dropGap(stackedItem, originalItem) {
-    console.log("dropping gap", stackedItem, originalItem)
     stackedItem.position.y = originalItem.position.y
     // stackedItem.stackedTo = stackedItem.stackedTo.filter(item => item !== originalItem);
     stackedItem.dispatchEvent({ type: 'change' });

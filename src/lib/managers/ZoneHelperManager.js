@@ -12,15 +12,8 @@ export class ZoneHelperManager {
 
   // Create a new zone helper
   createHelper(helperId, objects, color, options = {}) {
-    console.log('🔍 ZoneHelperManager.createHelper called');
-    console.log('🔍 Helper ID:', helperId);
-    console.log('🔍 Objects count:', objects.length);
-    console.log('🔍 Color:', color);
-    console.log('🔍 Options:', options);
-    
     // If a helper with the same ID already exists, remove it first to avoid orphaned meshes
     if (this.helpers.has(helperId)) {
-      console.log('🔍 Existing helper found for ID, removing before creating a new one:', helperId);
       this.removeHelper(helperId);
     }
 
@@ -51,7 +44,6 @@ export class ZoneHelperManager {
     });
 
     this.stage.add(helper.mesh);
-    console.log('🔍 Helper created and added to stage. Total helpers:', this.helpers.size);
     return helper;
   }
 
@@ -67,23 +59,18 @@ export class ZoneHelperManager {
 
   // Remove a helper
   removeHelper(helperId) {
-    console.log('🔍 ZoneHelperManager.removeHelper called');
-    console.log('🔍 Helper ID:', helperId);
     
     const helperData = this.helpers.get(helperId);
     if (!helperData) {
-      console.log('🔍 WARNING: Helper not found for ID:', helperId);
       return;
     }
 
-    console.log('🔍 Removing helper from stage');
     this.stage.remove(helperData.helper.mesh);
     
     // Properly dispose of the helper to clean up materials and geometries
     helperData.helper.dispose();
     
     this.helpers.delete(helperId);
-    console.log('🔍 Helper removed and disposed. Total helpers remaining:', this.helpers.size);
   }
 
   // Remove all helpers

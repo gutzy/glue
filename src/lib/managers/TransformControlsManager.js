@@ -16,7 +16,6 @@ export class TransformControlsManager {
 
     // Updated event listener for TransformControls
     this.transformControls.addEventListener('dragging-changed', (event) => {
-      console.log('Dragging changed:', event.value, this.orbitControls.enabled);
       this.orbitControls.enabled = !event.value;
     });
 

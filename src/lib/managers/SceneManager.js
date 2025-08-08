@@ -56,7 +56,6 @@ export class SceneManager {
 
   // create a plane in the back of the stage
   createStageBackdrop(width, height, curtainHeight = 4, gap = 0.25, curtainColor = 0x881111) {
-    console.log("Creating stage backdrop with width:", width, "height:", height, "curtainHeight:", curtainHeight, "gap:", gap, "curtainColor:", curtainColor);
     if (this.backdrop) {
         this.removeStageBackdrop();
     }
