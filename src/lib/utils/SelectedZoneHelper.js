@@ -17,9 +17,121 @@ export class SelectedZoneHelper {
         this._opacityAnimationFrom = 1.0
         this._opacityAnimationTo = 1.0
 
-        this.blobSizes = objects.map(obj => {
-            const bbox = new THREE.Box3().setFromObject(obj)
+        console.log('objects', objects)
+        this.blobSizes = objects.map((obj, idx) => {
+            console.log(`[ZoneHelper] Processing object ${idx}:`, obj.name, obj.type, obj.meta)
+            console.log(`[ZoneHelper] Object details:`, {
+                uniqueId: obj.uniqueId,
+                name: obj.name,
+                constructor: obj.constructor.name,
+                parent: obj.parent?.name,
+                hasMeta: !!obj.meta,
+                metaKeys: obj.meta ? Object.keys(obj.meta) : 'none'
+            })
+            
+            // For virtual composite objects, use the group's bounding box or fallback to the master box
+            let targetObj = obj
+            
+            // If we receive an object with no uniqueId/name/meta, this is likely a placeholder
+            // OR if we detect any sign this might be related to virtual items, search globally
+            const needsVirtualSearch = (!obj.uniqueId && !obj.name && !obj.meta) ||
+                                      (obj.name === 'Virtual Composite') ||
+                                      (obj.meta && obj.meta.isVirtual) ||
+                                      (obj.meta && obj.meta.isCompositeMaster)
+            
+            if (needsVirtualSearch) {
+                console.log('[ZoneHelper] Received placeholder object, searching for Virtual Composite masters...')
+                
+                // Search through all objects in the first object's scene (which should be available through the objects array)
+                if (this.objects && this.objects.length > 0) {
+                    let scene = null
+                    
+                    // Find the scene by traversing up from any object we have
+                    for (const testObj of this.objects) {
+                        let current = testObj
+                        while (current && current.parent) {
+                            current = current.parent
+                            if (current.type === 'Scene' || current.isScene) {
+                                scene = current
+                                break
+                            }
+                        }
+                        if (scene) break
+                    }
+                    
+                    if (scene) {
+                        const allObjects = []
+                        scene.traverse(child => {
+                            if (child.name === 'Virtual Composite' || (child.meta && child.meta.isCompositeMaster)) {
+                                allObjects.push(child)
+                            }
+                        })
+                        
+                        console.log('[ZoneHelper] Found Virtual Composite objects:', allObjects.length)
+                        if (allObjects.length > 0) {
+                            // Use the most recent Virtual Composite as the target
+                            const composite = allObjects[allObjects.length - 1] 
+                            console.log('[ZoneHelper] Using Virtual Composite:', composite.name, composite.uniqueId)
+                            
+                            if (composite.meta && composite.meta.group) {
+                                targetObj = composite.meta.group
+                                console.log('[ZoneHelper] Using group from found composite')
+                            } else {
+                                targetObj = composite
+                                console.log('[ZoneHelper] Using composite master itself')
+                            }
+                        }
+                    } else {
+                        console.log('[ZoneHelper] Could not find scene for search')
+                    }
+                }
+            }
+            
+            // Check if this looks like a composite master by searching for associated groups
+            // This is more robust than relying on meta which might get lost
+            const isLikelyComposite = obj.name === 'Virtual Composite' || 
+                                     (obj.meta && obj.meta.isCompositeMaster) ||
+                                     obj.name?.includes('Composite')
+            
+            if (isLikelyComposite) {
+                console.log('[ZoneHelper] Detected likely composite master, looking for group...')
+                
+                // First try to get group from meta (stored during creation)
+                if (obj.meta && obj.meta.group) {
+                    console.log('[ZoneHelper] Using group from meta:', obj.meta.group)
+                    targetObj = obj.meta.group
+                } else {
+                    // Fallback: Look for the associated group in the scene
+                    const scene = obj.parent
+                    console.log('[ZoneHelper] Searching scene for group, scene children:', scene?.children?.length)
+                    
+                    if (scene) {
+                        const group = scene.children.find(child => {
+                            const isGroup = child.type === 'Group'
+                            const hasMatchingChild = child.children && child.children.some(c => c.boxId === obj.uniqueId)
+                            console.log(`[ZoneHelper] Checking child:`, child.type, isGroup, hasMatchingChild)
+                            return isGroup && hasMatchingChild
+                        })
+                        
+                        if (group && group.children.length > 0) {
+                            targetObj = group
+                            console.log('[ZoneHelper] Using group from scene search:', group)
+                        } else {
+                            console.log('[ZoneHelper] No suitable group found in scene')
+                        }
+                    }
+                }
+            }
+            
+            const bbox = new THREE.Box3().setFromObject(targetObj)
             const size = bbox.getSize(new THREE.Vector3())
+            
+            // Ensure we have reasonable dimensions
+            if (size.x === 0 && size.y === 0 && size.z === 0) {
+                console.warn('Object has zero size, using fallback', obj)
+                return minBlobSize
+            }
+            
             const computed = Math.max(size.x, size.z) / 2 * radius
             return Math.max(minBlobSize, Math.min(maxBlobSize, computed))
         })
@@ -89,7 +201,80 @@ export class SelectedZoneHelper {
 
     update() {
         const updatedPoints = this.objects.map(obj => {
-            const bbox = new THREE.Box3().setFromObject(obj);
+            // For virtual composite objects, use the group's center or fallback to the master box
+            let targetObj = obj
+            
+            // If this is still a placeholder object OR shows signs of being virtual, search for the current Virtual Composite
+            const needsVirtualSearch = (!obj.uniqueId && !obj.name && !obj.meta) ||
+                                      (obj.name === 'Virtual Composite') ||
+                                      (obj.meta && obj.meta.isVirtual) ||
+                                      (obj.meta && obj.meta.isCompositeMaster)
+            
+            if (needsVirtualSearch) {
+                // Search through all objects to find scene and Virtual Composite
+                if (this.objects && this.objects.length > 0) {
+                    let scene = null
+                    
+                    // Find the scene by traversing up from any object we have
+                    for (const testObj of this.objects) {
+                        let current = testObj
+                        while (current && current.parent) {
+                            current = current.parent
+                            if (current.type === 'Scene' || current.isScene) {
+                                scene = current
+                                break
+                            }
+                        }
+                        if (scene) break
+                    }
+                    
+                    if (scene) {
+                        const allObjects = []
+                        scene.traverse(child => {
+                            if (child.name === 'Virtual Composite' || (child.meta && child.meta.isCompositeMaster)) {
+                                allObjects.push(child)
+                            }
+                        })
+                        
+                        if (allObjects.length > 0) {
+                            // Use the most recent Virtual Composite as the target
+                            const composite = allObjects[allObjects.length - 1] 
+                            
+                            if (composite.meta && composite.meta.group) {
+                                targetObj = composite.meta.group
+                            } else {
+                                targetObj = composite
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check if this looks like a composite master (more robust than relying on meta)
+            const isLikelyComposite = obj.name === 'Virtual Composite' || 
+                                     (obj.meta && obj.meta.isCompositeMaster) ||
+                                     obj.name?.includes('Composite')
+            
+            if (isLikelyComposite) {
+                // First try to get group from meta (stored during creation)
+                if (obj.meta && obj.meta.group) {
+                    targetObj = obj.meta.group
+                } else {
+                    // Fallback: Look for the associated group in the scene
+                    const scene = obj.parent
+                    if (scene) {
+                        const group = scene.children.find(child => 
+                            child.type === 'Group' && 
+                            child.children && child.children.some(c => c.boxId === obj.uniqueId)
+                        )
+                        if (group && group.children.length > 0) {
+                            targetObj = group
+                        }
+                    }
+                }
+            }
+            
+            const bbox = new THREE.Box3().setFromObject(targetObj);
             const center = bbox.getCenter(new THREE.Vector3());
             return new THREE.Vector2(center.x, center.z);
         });

@@ -17,7 +17,16 @@ export class ObjectManager {
     }
 
     getByUniqueId(uniqueId) {
-        return this.boxes.find(box => box.uniqueId === uniqueId);
+        const found = this.boxes.find(box => box.uniqueId === uniqueId);
+        if (found && found.name === 'Virtual Composite') {
+            console.log('[ObjectManager] getByUniqueId returning Virtual Composite:', {
+                uniqueId: found.uniqueId,
+                name: found.name,
+                hasMeta: !!found.meta,
+                metaKeys: found.meta ? Object.keys(found.meta) : 'none'
+            });
+        }
+        return found;
     }
 
     removeByName(name) {
@@ -128,6 +137,116 @@ export class ObjectManager {
         // this.stage.controlsManager.resetDragControls(box)
 
         return model
+    }
+
+    // Load a composite virtual item from entry specs and expose a single draggable master box.
+    // entries: Array of { url: string, position?: [x,y,z], rotation?: [rx,ry,rz] in degrees }
+    async loadComposite(entries = [], { onClick = null } = {}) {
+        if (!Array.isArray(entries) || entries.length === 0) return null;
+
+        const childBoxes = [];
+        const childModels = [];
+
+        // Load all children sequentially to report progress deterministically
+        for (const entry of entries) {
+            const url = entry.url;
+            if (!url) continue;
+            // Reuse existing loader; mark as non-stackable, hidden drag boxes
+            const model = await this.loadGLTFModel(url, { onClick }, { stackable: false, snapsToSimilar: false, customData: { name: entry.name || 'Composite Child' } }, () => {});
+            if (!model) continue;
+            const box = this.getByUniqueId(model.boxId);
+            if (!box) continue;
+            // mark and hide child boxes from interaction
+            box.meta = { ...(box.meta || {}), isCompositeChild: true };
+            box.visible = false;
+            childBoxes.push(box);
+            childModels.push(model);
+
+            const p = entry.position || [0, null, 0];
+            const r = entry.rotation || [0, 0, 0]; // degrees
+            box.setPosition(p[0] || 0, p[1] ?? null, p[2] || 0);
+            box.rotation.x = (r[0] || 0) * Math.PI / 180;
+            box.setRotation(r[1] || 0);
+            box.rotation.z = (r[2] || 0) * Math.PI / 180;
+            box.dispatchEvent({ type: 'change' });
+        }
+
+        // Create group that carries actual rendered children
+        const group = new THREE.Group();
+        this.scene.add(group);
+        // Use attach to preserve current world transforms of children
+        childModels.forEach(m => group.attach(m));
+
+        // Compute union bounds from the group directly (includes all descendants)
+        const union = new THREE.Box3().setFromObject(group);
+        const center = new THREE.Vector3();
+        const size = new THREE.Vector3();
+        union.getCenter(center);
+        union.getSize(size);
+        // Guard against degenerate sizes
+        size.set(Math.max(size.x, 0.001), Math.max(size.y, 0.001), Math.max(size.z, 0.001));
+
+        // Create master box as the single draggable handle (floor-aligned)
+        const height = Math.max(size.y, 0.001);
+        const masterY = center.y - height / 2; // bottom should align with union.min.y
+        const master = this.addBox(center.x, masterY, center.z, Math.max(size.x, 0.001), height, Math.max(size.z, 0.001), 0, false, false);
+        // Generate uniqueId for the master box so splot can find it
+        master.uniqueId = Math.random().toString(36).substring(7);
+        master.name = 'Virtual Composite';
+        master.meta = { isCompositeMaster: true, childBoxes, group };
+        master.onClickEvent = onClick;
+        
+        console.log('[ObjectManager] Created composite master with meta:', master.meta);
+        console.log('[ObjectManager] Master box uniqueId:', master.uniqueId, 'name:', master.name);
+        
+        // Add moveStackedItems method for composite master compatibility
+        master.moveStackedItems = function() {
+            // Update the group position based on master position
+            if (group && groupOffset) {
+                group.position.copy(this.position).sub(groupOffset);
+                group.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+            }
+            // Also move any regularly stacked items (if any)
+            if (this.stackedItems && typeof this.stackedItems.forEach === 'function') {
+                this.stackedItems.forEach(item => {
+                    item.position.set(
+                        this.position.x + item.relativePosition.x,
+                        this.position.y + item.relativePosition.y,
+                        this.position.z + item.relativePosition.z
+                    );
+                    if (typeof item.moveStackedItems === 'function') {
+                        item.moveStackedItems();
+                    }
+                    item.dispatchEvent({ type: 'change' });
+                });
+            }
+        };
+
+        // Precompute offset so models do not jump when master is created/moved.
+        // We want group's world center ("center") to sit at the master's position.
+        // Therefore, group.position = master.position - center
+        const groupOffset = center.clone();
+
+        // Drive group transform from master box using the offset
+        master.addEventListener('change', () => {
+            group.position.copy(master.position).sub(groupOffset);
+            group.rotation.set(master.rotation.x, master.rotation.y, master.rotation.z);
+        });
+        group.traverse(ch => ch.boxId = master.uniqueId);
+        // Initialize group transform so children remain where they were
+        group.position.copy(master.position).sub(groupOffset);
+
+        // Restrict drag to master boxes only (but avoid disrupting ongoing drags)
+        if (this.stage?.controlsManager?.dragControls?.setObjects) {
+            const dragControls = this.stage.controlsManager.dragControls;
+            // Only update if not currently dragging to avoid interrupting user interaction
+            if (!dragControls.enabled || !dragControls._isDragging) {
+                const allowed = this.boxes.filter(b => !b.meta || !b.meta.isCompositeChild);
+                dragControls.setObjects(allowed);
+            }
+        }
+
+        return master;
     }
 
     async loadModel(contents, translation = null, rotation = null) {
