@@ -34,10 +34,12 @@ export class Box extends THREE.Mesh {
 
   stack(object) {
     // Guard: avoid stacking cycles and duplicate parenting
-    if (object === this) return;
+    if (object === this || object.uniqueId === this.uniqueId) return;
     if (object.stackedTo && object.stackedTo !== this) {
       object.stackedTo.unstack(object);
     }
+    // avoid stacking self
+    console.log(this.uniqueId, 'stacking', object.uniqueId)
     this.stackedItems.add(object);
     object.setColor(0xffff00); // Change color to yellow when stacked
     object.relativePosition = {
@@ -93,43 +95,79 @@ export class Box extends THREE.Mesh {
   }
 
   moveStackedItems() {
-    this.stackedItems.forEach(item => {
-      item.position.set(
-        this.position.x + item.relativePosition.x,
-        this.position.y + item.relativePosition.y,
-        this.position.z + item.relativePosition.z
-      );
-      // Recursively move items stacked on top of this item
-      item.moveStackedItems();
-      item.dispatchEvent({ type: 'change' });
-    });
+    // Safety check: prevent infinite recursion
+    if (this._isMovingStackedItems) {
+      console.warn('[Box] Preventing infinite recursion in moveStackedItems for:', this.name);
+      return;
+    }
+    
+    this._isMovingStackedItems = true;
+    
+    try {
+      this.stackedItems.forEach(item => {
+        // Safety check: prevent self-reference
+        if (item === this) {
+          console.warn('[Box] Preventing self-reference in moveStackedItems for:', this.name);
+          return;
+        }
+        
+        item.position.set(
+          this.position.x + item.relativePosition.x,
+          this.position.y + item.relativePosition.y,
+          this.position.z + item.relativePosition.z
+        );
+        // Recursively move items stacked on top of this item
+        item.moveStackedItems();
+        item.dispatchEvent({ type: 'change' });
+      });
+    } finally {
+      this._isMovingStackedItems = false;
+    }
   }
 
   rotateStackedItems(amount) {
-    const sinA = Math.sin(amount);
-    const cosA = Math.cos(amount);
-    this.stackedItems.forEach(item => {
-      const rel = item.relativePosition || {
-        x: item.position.x - this.position.x,
-        y: item.position.y - this.position.y,
-        z: item.position.z - this.position.z,
-      };
-      // Rotate around Y using the same handedness as prior implementation
-      const rx = rel.x * cosA + rel.z * sinA;
-      const rz = -rel.x * sinA + rel.z * cosA;
-      item.position.set(
-        this.position.x + rx,
-        this.position.y + rel.y,
-        this.position.z + rz
-      );
-      item.rotation.y += amount;
-      item.relativePosition = { x: rx, y: rel.y, z: rz };
+    // Safety check: prevent infinite recursion
+    if (this._isRotatingStackedItems) {
+      console.warn('[Box] Preventing infinite recursion in rotateStackedItems for:', this.name);
+      return;
+    }
+    
+    this._isRotatingStackedItems = true;
+    
+    try {
+      const sinA = Math.sin(amount);
+      const cosA = Math.cos(amount);
+      this.stackedItems.forEach(item => {
+        // Safety check: prevent self-reference
+        if (item === this) {
+          console.warn('[Box] Preventing self-reference in rotateStackedItems for:', this.name);
+          return;
+        }
+        
+        const rel = item.relativePosition || {
+          x: item.position.x - this.position.x,
+          y: item.position.y - this.position.y,
+          z: item.position.z - this.position.z,
+        };
+        // Rotate around Y using the same handedness as prior implementation
+        const rx = rel.x * cosA + rel.z * sinA;
+        const rz = -rel.x * sinA + rel.z * cosA;
+        item.position.set(
+          this.position.x + rx,
+          this.position.y + rel.y,
+          this.position.z + rz
+        );
+        item.rotation.y += amount;
+        item.relativePosition = { x: rx, y: rel.y, z: rz };
 
-      item.dispatchEvent({ type: 'change' });
-      if (item.stackedItems) {
-        item.rotateStackedItems(amount);
-      }
-    });
+        item.dispatchEvent({ type: 'change' });
+        if (item.stackedItems) {
+          item.rotateStackedItems(amount);
+        }
+      });
+    } finally {
+      this._isRotatingStackedItems = false;
+    }
   }
 
   isItemStillStacked(item) {

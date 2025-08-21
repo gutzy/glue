@@ -17,17 +17,7 @@ export class SelectedZoneHelper {
         this._opacityAnimationFrom = 1.0
         this._opacityAnimationTo = 1.0
 
-        console.log('objects', objects)
         this.blobSizes = objects.map((obj, idx) => {
-            console.log(`[ZoneHelper] Processing object ${idx}:`, obj.name, obj.type, obj.meta)
-            console.log(`[ZoneHelper] Object details:`, {
-                uniqueId: obj.uniqueId,
-                name: obj.name,
-                constructor: obj.constructor.name,
-                parent: obj.parent?.name,
-                hasMeta: !!obj.meta,
-                metaKeys: obj.meta ? Object.keys(obj.meta) : 'none'
-            })
             
             // For virtual composite objects, use the group's bounding box or fallback to the master box
             let targetObj = obj
@@ -40,7 +30,6 @@ export class SelectedZoneHelper {
                                       (obj.meta && obj.meta.isCompositeMaster)
             
             if (needsVirtualSearch) {
-                console.log('[ZoneHelper] Received placeholder object, searching for Virtual Composite masters...')
                 
                 // Search through all objects in the first object's scene (which should be available through the objects array)
                 if (this.objects && this.objects.length > 0) {
@@ -67,18 +56,14 @@ export class SelectedZoneHelper {
                             }
                         })
                         
-                        console.log('[ZoneHelper] Found Virtual Composite objects:', allObjects.length)
                         if (allObjects.length > 0) {
                             // Use the most recent Virtual Composite as the target
                             const composite = allObjects[allObjects.length - 1] 
-                            console.log('[ZoneHelper] Using Virtual Composite:', composite.name, composite.uniqueId)
                             
                             if (composite.meta && composite.meta.group) {
                                 targetObj = composite.meta.group
-                                console.log('[ZoneHelper] Using group from found composite')
                             } else {
                                 targetObj = composite
-                                console.log('[ZoneHelper] Using composite master itself')
                             }
                         }
                     } else {
@@ -94,30 +79,24 @@ export class SelectedZoneHelper {
                                      obj.name?.includes('Composite')
             
             if (isLikelyComposite) {
-                console.log('[ZoneHelper] Detected likely composite master, looking for group...')
-                
                 // First try to get group from meta (stored during creation)
                 if (obj.meta && obj.meta.group) {
-                    console.log('[ZoneHelper] Using group from meta:', obj.meta.group)
                     targetObj = obj.meta.group
                 } else {
                     // Fallback: Look for the associated group in the scene
                     const scene = obj.parent
-                    console.log('[ZoneHelper] Searching scene for group, scene children:', scene?.children?.length)
                     
                     if (scene) {
                         const group = scene.children.find(child => {
                             const isGroup = child.type === 'Group'
                             const hasMatchingChild = child.children && child.children.some(c => c.boxId === obj.uniqueId)
-                            console.log(`[ZoneHelper] Checking child:`, child.type, isGroup, hasMatchingChild)
                             return isGroup && hasMatchingChild
                         })
                         
                         if (group && group.children.length > 0) {
                             targetObj = group
-                            console.log('[ZoneHelper] Using group from scene search:', group)
                         } else {
-                            console.log('[ZoneHelper] No suitable group found in scene')
+                            // ...
                         }
                     }
                 }

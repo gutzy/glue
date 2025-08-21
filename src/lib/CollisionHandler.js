@@ -30,6 +30,10 @@ export class CollisionHandler {
 
     // Function to handle stacking recursively
     const handleStacking = (object, stackableObject, isStacked = false) => {
+      if (object.uniqueId === stackableObject.uniqueId) {
+        console.log('stacking self!!', object.uniqueId)
+        return;
+      }
       const stackableOBB = createOBB(stackableObject);
 
       const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
@@ -55,6 +59,7 @@ export class CollisionHandler {
           if (!isStacked) stackableObject.stack(object);
         }
         else {
+          console.log('updating relative position', object.position)
           // Update the relative position if the object is already stacked
             object.relativePosition = {
                 x: object.position.x - stackableObject.position.x,
@@ -98,23 +103,43 @@ export class CollisionHandler {
         if (draggedOBB.intersectsOBB(otherOBB)) {
 
           if (box.snapsToSimilar && draggedObject.snapsToSimilar && box.meta.id === draggedObject.meta.id && box.rotation.equals(draggedObject.rotation)) {
-            // If both are stackable and dragged towards the center, prefer stacking-on-top
+            // Check if objects are at similar Y heights - disable snapping if heights differ significantly
+            const yHeightDiff = Math.abs(draggedOBB.center.y - otherOBB.center.y);
+            const maxHeight = Math.max(draggedOBB.halfSize.y, otherOBB.halfSize.y);
+            const heightThreshold = maxHeight * 0.5; // Allow snapping if height difference is less than half the tallest object
+            
+            // Additional check: if the dragged object was originally stacked (has stackedTo property), 
+            // be more restrictive about snapping to prevent unwanted edge connections
+            const wasStacked = draggedObject.stackedTo !== null && draggedObject.stackedTo !== undefined;
+            const restrictiveHeightThreshold = wasStacked ? maxHeight * 0.2 : heightThreshold;
+            
+            if (yHeightDiff > restrictiveHeightThreshold) {
+              // Objects at different heights - skip similar object snapping entirely
+              return;
+            }
+
+            // If both are stackable and dragged towards the center, prefer soft stacking over edge snapping
             if (draggedObject.stackable && box.stackable) {
               const dx = draggedOBB.center.x - otherOBB.center.x;
               const dz = draggedOBB.center.z - otherOBB.center.z;
               const centerDist = Math.hypot(dx, dz);
               const centerThreshold = Math.min(otherOBB.halfSize.x, otherOBB.halfSize.z) * 0.3;
+              
               if (centerDist < centerThreshold) {
-                // snap to center in XZ and let stacking handler place on top
-                draggedObject.position.x = box.position.x;
-                draggedObject.position.z = box.position.z;
-                // Queue this box for stacking phase
+                // Apply soft center snapping - gentle pull toward center, not hard lock
+                const softSnapStrength = 0.3; // How much to pull toward center (0 = no pull, 1 = hard snap)
+                const targetX = box.position.x;
+                const targetZ = box.position.z;
+                draggedObject.position.x += (targetX - draggedObject.position.x) * softSnapStrength;
+                draggedObject.position.z += (targetZ - draggedObject.position.z) * softSnapStrength;
+                
+                // Queue for stacking
                 stackableObjects.push(box);
                 return; // skip edge snapping when stacking is intended
               }
             }
 
-            // Otherwise, default to edge snapping on four sides
+            // Otherwise, default to edge snapping on four sides (only if at similar heights)
             const draggedOBBMin = draggedOBB.center.clone().sub(draggedOBB.halfSize);
             const otherOBBMin = otherOBB.center.clone().sub(otherOBB.halfSize);
             const draggedOBBSize = draggedOBB.halfSize.clone();
@@ -149,8 +174,13 @@ export class CollisionHandler {
             const centerDist = Math.hypot(dx, dz);
             const centerThreshold = Math.min(otherOBB.halfSize.x, otherOBB.halfSize.z) * 0.3;
             if (centerDist < centerThreshold) {
-              draggedObject.position.x = box.position.x;
-              draggedObject.position.z = box.position.z;
+              // Apply soft center snapping for stackable objects
+              const softSnapStrength = 0.3; // Gentle pull toward center
+              const targetX = box.position.x;
+              const targetZ = box.position.z;
+              draggedObject.position.x += (targetX - draggedObject.position.x) * softSnapStrength;
+              draggedObject.position.z += (targetZ - draggedObject.position.z) * softSnapStrength;
+              
               stackableObjects.push(box);
               return;
             }
@@ -205,10 +235,14 @@ export class CollisionHandler {
 
   }
 
-  // used when an item below a certain item is removed, this will drop the top item to its original position
+  // used when an item below a certain item is removed, this will drop the top item to the ground
   dropGap(stackedItem, originalItem) {
-    stackedItem.position.y = originalItem.position.y
-    // stackedItem.stackedTo = stackedItem.stackedTo.filter(item => item !== originalItem);
+    // Calculate proper ground position: half the object's height above ground (Y=0)
+    const groundY = stackedItem.geometry.parameters.height / 2;
+    stackedItem.position.y = groundY;
+    // Clear stacking relationship
+    stackedItem.stackedTo = null;
+    delete stackedItem.relativePosition;
     stackedItem.dispatchEvent({ type: 'change' });
   }
 }

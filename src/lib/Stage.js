@@ -7,6 +7,7 @@ import { CollisionHandler } from './CollisionHandler.js';
 import {EventDispatcher, OrthographicCamera, PerspectiveCamera} from "three";
 import Config from "./Config";
 import {initNavCube, resetNavCameraType, updateNavCubePosition, updateNavCubeRotation} from "./utils/NavigationCube";
+import { GlueTestingBackdoor } from './TestingBackdoor.js';
 
 export class Stage extends EventDispatcher {
   constructor(container, config = {}) {
@@ -49,6 +50,21 @@ export class Stage extends EventDispatcher {
         this.initializeNavigationCube()
         this.resetStageHeight(this.container.clientHeight)
     }, 100)
+
+    // Initialize testing backdoor (always created but only enabled when needed)
+    this.testingBackdoor = new GlueTestingBackdoor(this);
+    
+    // Enable testing backdoor if configured or ?testing=true URL parameter
+    if (config.enableTesting || 
+        (typeof window !== 'undefined' && window.location.search.includes('testing=true'))) {
+      this.testingBackdoor.enable();
+      console.log('[GLUE] Testing backdoor enabled');
+    }
+
+    // Expose stage globally for testing
+    if (typeof window !== 'undefined') {
+      window.glueStage = this;
+    }
   }
 
   bindListeners() {

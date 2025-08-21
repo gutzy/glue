@@ -21,7 +21,7 @@ export default class Config {
     this.backgroundColor = 0x000000;
     this.floorColor = 0xeeeeee;
     this.curtainColor = 0x881111;
-
+    this.enableTesting = false; // E2E testing backdoor: set to true to enable comprehensive testing hooks
 
     if (config) this.updateConfig(config);
   }
@@ -48,5 +48,6 @@ export default class Config {
       if (config.backgroundColor !== undefined) this.backgroundColor = config.backgroundColor;
       if (config.floorColor !== undefined) this.floorColor = config.floorColor;
       if (config.curtainColor !== undefined) this.curtainColor = config.curtainColor;
+      if (config.enableTesting !== undefined) this.enableTesting = config.enableTesting;
     }
 }
