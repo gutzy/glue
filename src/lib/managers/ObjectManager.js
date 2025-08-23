@@ -1,4 +1,6 @@
 import {Box} from "../objects/Box";
+import {Curtain} from "../objects/Curtain";
+import {TSLCurtain} from "../objects/TSLCurtain";
 import {GLTFModel} from "../utils/ModelUtils";
 import * as THREE from "three";
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
@@ -11,6 +13,7 @@ export class ObjectManager {
         this.children = []
         this.boxes = []
         this.models = []
+        this.curtains = []
         this.glueId = 0
 
         this.loader = new GLTFLoader();
@@ -19,12 +22,7 @@ export class ObjectManager {
     getByUniqueId(uniqueId) {
         const found = this.boxes.find(box => box.uniqueId === uniqueId);
         if (found && found.name === 'Virtual Composite') {
-            console.log('[ObjectManager] getByUniqueId returning Virtual Composite:', {
-                uniqueId: found.uniqueId,
-                name: found.name,
-                hasMeta: !!found.meta,
-                metaKeys: found.meta ? Object.keys(found.meta) : 'none'
-            });
+            // Virtual Composite found
         }
         return found;
     }
@@ -91,6 +89,9 @@ export class ObjectManager {
         this.boxes.push(box);
 
         box.visible = false;
+        
+        // Update drag controls to include this box
+        this.updateDragControls();
 
         return box
     }
@@ -196,8 +197,7 @@ export class ObjectManager {
         master.meta = { isCompositeMaster: true, childBoxes, group };
         master.onClickEvent = onClick;
         
-        console.log('[ObjectManager] Created composite master with meta:', master.meta);
-        console.log('[ObjectManager] Master box uniqueId:', master.uniqueId, 'name:', master.name);
+        // Composite master created
         
         // Add moveStackedItems method for composite master compatibility
         master.moveStackedItems = function() {
@@ -237,14 +237,7 @@ export class ObjectManager {
         group.position.copy(master.position).sub(groupOffset);
 
         // Restrict drag to master boxes only (but avoid disrupting ongoing drags)
-        if (this.stage?.controlsManager?.dragControls?.setObjects) {
-            const dragControls = this.stage.controlsManager.dragControls;
-            // Only update if not currently dragging to avoid interrupting user interaction
-            if (!dragControls.enabled || !dragControls._isDragging) {
-                const allowed = this.boxes.filter(b => !b.meta || !b.meta.isCompositeChild);
-                dragControls.setObjects(allowed);
-            }
-        }
+        this.updateDragControls();
 
         return master;
     }
@@ -296,5 +289,138 @@ export class ObjectManager {
         if (model.attachedModel) {
             model.attachedModel.scale.set(scale, scale, scale);
         }
+    }
+
+    // Curtain creation methods
+    addCurtain(x, y, z, config = {}) {
+        const curtain = config.enableTSL 
+            ? new TSLCurtain(x, y, z, config)
+            : new Curtain(x, y, z, config);
+        
+        curtain.uniqueId = config.uniqueId || Math.random().toString(36).substring(7);
+        curtain.name = config.name || 'Theatre Curtain';
+        curtain.description = config.description || 'A stage curtain';
+        curtain.isDraggable = false; // Curtains should not be draggable by mouse
+        
+        this.scene.add(curtain);
+        this.children.push(curtain);
+        this.boxes.push(curtain); // Curtains extend Box for collision/interaction
+        this.curtains.push(curtain);
+        
+        // Sync curtain width to stage
+        const targetWidth = config.stageWidth || this.stage?.getCurrentStageWidth();
+        if (targetWidth && curtain.setWidthToStage) {
+            curtain.setWidthToStage(targetWidth);
+        }
+        
+        // Update drag controls to exclude this curtain
+        this.updateDragControls();
+        
+        return curtain;
+    }
+    
+    // Get only draggable boxes (excludes curtains and composite children)
+    getDraggableBoxes() {
+        return this.boxes.filter(b => 
+            (!b.meta || !b.meta.isCompositeChild) && 
+            b.isDraggable !== false
+        );
+    }
+    
+    // Update drag controls with current draggable objects
+    updateDragControls() {
+        if (this.stage?.controlsManager?.dragControls?.setObjects) {
+            const dragControls = this.stage.controlsManager.dragControls;
+            if (!dragControls.enabled || !dragControls._isDragging) {
+                const allowed = this.getDraggableBoxes();
+                dragControls.setObjects(allowed);
+                console.log('Updated drag controls, draggable objects:', allowed.length);
+            }
+        }
+    }
+
+    removeCurtain(curtain) {
+        const index = this.children.indexOf(curtain);
+        const boxIndex = this.boxes.indexOf(curtain);
+        const curtainIndex = this.curtains.indexOf(curtain);
+        
+        if (index > -1) {
+            this.scene.remove(curtain);
+            this.children.splice(index, 1);
+        }
+        if (boxIndex > -1) {
+            this.boxes.splice(boxIndex, 1);
+        }
+        if (curtainIndex > -1) {
+            this.curtains.splice(curtainIndex, 1);
+        }
+        
+        // Clean up geometry and materials
+        if (curtain.geometry && curtain.geometry.dispose) curtain.geometry.dispose();
+        if (curtain.material && curtain.material.dispose) {
+            try {
+                curtain.material.dispose();
+            } catch (error) {
+                console.warn('Error disposing curtain material:', error);
+            }
+        }
+        if (curtain.logoMesh) {
+            if (curtain.logoMesh.geometry && curtain.logoMesh.geometry.dispose) curtain.logoMesh.geometry.dispose();
+            if (curtain.logoMesh.material && curtain.logoMesh.material.dispose) curtain.logoMesh.material.dispose();
+        }
+    }
+
+    // Create curtain from SPLOT configuration
+    createCurtainFromConfig(config) {
+        // Position curtain at stage boundaries (typically at back)
+        const stageConfig = this.stage.config || {};
+        const stageWidth = stageConfig.width || 20;
+        const stageDepth = stageConfig.depth || 15;
+        
+        const x = 0; // Center of stage
+        const y = 0; // Ground level (curtain hangs from above)
+        const z = -(stageDepth / 2) + 1; // At back of stage
+        
+        // Convert SPLOT config to GLUE curtain config
+        const curtainConfig = {
+            ...config,
+            width: stageWidth * (config.widthScale || 1),
+            stageWidth: stageWidth,
+            uniqueId: Math.random().toString(36).substring(7),
+            name: `${config.curtainType} Curtain`,
+            description: `${config.enableTSL ? 'TSL ' : ''}${config.curtainType} curtain`
+        };
+        
+        return this.addCurtain(x, y, z, curtainConfig);
+    }
+
+    // Update existing curtain with new configuration
+    updateCurtainConfig(curtain, config) {
+        if (!curtain || curtain.type !== 'curtain') return;
+        
+        // Apply configuration
+        curtain.applyConfig(config);
+        
+        // Handle logo if provided
+        if (config.logoUrl && config.logoUrl !== curtain.logoTexture?.source?.data?.src) {
+            curtain.addLogo(config.logoUrl, { size: config.logoSize });
+        } else if (!config.logoUrl && curtain.logoMesh) {
+            curtain.removeLogo();
+        }
+        
+        // Scale to stage width if needed
+        if (config.stageWidth && config.widthScale) {
+            curtain.scaleToStageWidth(config.stageWidth * config.widthScale);
+        }
+    }
+
+    // Get all curtains
+    getCurtains() {
+        return this.curtains;
+    }
+
+    // Get curtain by unique ID
+    getCurtainById(uniqueId) {
+        return this.curtains.find(curtain => curtain.uniqueId === uniqueId);
     }
 }
